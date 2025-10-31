@@ -1,108 +1,106 @@
 ﻿/* 这是 header.css 的全部内容 */
 body {
-       background-color: #000000;
-       margin: 0;
-       padding: 0;
-       font-family: Arial, "Times New Roman", sans-serif;
+    background-color: #000000;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, "Times New Roman", sans-serif;
 }
 
 /* 外部表格 (框架) */
 table.header-nav {
-       width: 100%;
-       border-collapse: collapse;
+    width: 100%;
+    border-collapse: collapse;
 }
 
 td.logo {
-       padding: 0px 0px;
-       width: 1px;
-       vertical-align: middle;
-       border-right: 2px solid #555555;
+    padding: 0px 0px;
+    width: 1px;
+    vertical-align: middle;
+    border-right: 2px solid #555555;
 }
 
     td.logo img {
-           vertical-align: middle;
+        vertical-align: middle;
     }
 
 td.links-cell {
-       vertical-align: middle;
-       padding: 0;
+    vertical-align: middle;
+    padding: 0;
 }
 
 table.inner-nav {
-       width: 100%;
-       
+    width: 100%;
     /* border-collapse: collapse;*/
 }
 
 td.inner-link {
-       width: 25%;
-       vertical-align: middle;
-       text-align: center;
-       
+    width: 25%;
+    vertical-align: middle;
+    text-align: center;
     /*border-right: 2px solid #555555;*/
 }
 
 /* --- 链接样式 --- */
 a.nav {
-       color: #1E90FF;
-       font-size: 18px;
-       text-decoration: underline;
-       font-weight: 100;
-       cursor: pointer; /* 鼠标悬停时显示为手型 */
+    color: #1E90FF;
+    font-size: 18px;
+    text-decoration: underline;
+    font-weight: 100;
+    cursor: pointer; /* 鼠标悬停时显示为手型 */
 }
 
     a.nav:hover {
-           color: #00FF00;
-           text-decoration: none;
+        color: #00FF00;
+        text-decoration: none;
     }
 
 /* --- 下拉菜单样式 --- */
 .dropdown-container {
-       position: relative; /* 关键：让子菜单相对此元素定位 */
+    position: relative; /* 关键：让子菜单相对此元素定位 */
 }
 
 .dropdown-content {
-       display: none; /* 默认隐藏 */
-       position: absolute; /* 弹出，不占空间 */
-       top: 200%; /* 你设置的距离 */
-       left: 0; /* 对齐父级(td)的左侧 */
-       width: 100%; /* 宽度与父级(td)相同 */
-       background-color: #000000; /* 下拉菜单背景色 */
-       border: 2px solid #555555; /* 边框风格统一 */
-       z-index: 10; /* 确保它在最上层 */
+    display: none; /* 默认隐藏 */
+    position: absolute; /* 弹出，不占空间 */
+    top: 200%; /* 你设置的距离 */
+    left: 0; /* 对齐父级(td)的左侧 */
+    width: 100%; /* 宽度与父级(td)相同 */
+    background-color: #000000; /* 下拉菜单背景色 */
+    border: 2px solid #555555; /* 边框风格统一 */
+    z-index: 10; /* 确保它在最上层 */
 }
 
     .dropdown-content.show {
-           display: block;
+        display: block;
     }
 
     .dropdown-content a {
-           display: block; /* 垂直堆叠 */
-           color: #1E90FF;
-           font-size: 16px;
-           padding: 10px;
-           text-decoration: none;
-           text-align: center;
+        display: block; /* 垂直堆叠 */
+        color: #1E90FF;
+        font-size: 16px;
+        padding: 10px;
+        text-decoration: none;
+        text-align: center;
     }
 
         .dropdown-content a:hover {
-               background-color: #555555;
-               color: #00FF00;
+            background-color: #555555;
+            color: #00FF00;
         }
 
 /* --- 内容区样式 --- */
 hr {
-       border: 0;
-       height: 2px;
-       background-color: #555555;
-       margin: 0;
+    border: 0;
+    height: 2px;
+    background-color: #555555;
+    margin: 0;
 }
 
 .content {
-       padding: 20px;
-       color: #FFFFFF;
+    padding: 20px;
+    color: #FFFFFF;
 }
 
     .content h1 {
-           color: #00FF00;
+        color: #00FF00;
     }

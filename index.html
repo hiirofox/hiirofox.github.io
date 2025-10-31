@@ -1,197 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L-MODEL OFFICIAL HOMEPAGE</title>
-    <style>
-               body {
-                       background-color: #000000;
-                       margin: 0;
-                       padding: 0;
-                       font-family: Arial, "Times New Roman", sans-serif;
 
-        }
-
-
-        /* 外部表格 (框架) */
-               table.header-nav {
-                       width: 100%;
-                       border-collapse: collapse;
-
-        }
-
-               td.logo {
-                       padding: 0px 0px;
-                       width: 1px;
-                       vertical-align: middle;
-                       border-right: 2px solid #555555;
-
-        }
-
-                   td.logo img {
-                           vertical-align: middle;
-
-        }
-
-               td.links-cell {
-                       vertical-align: middle;
-                       padding: 0;
-
-        }
-
-               table.inner-nav {
-                       width: 100%;
-
-            /* border-collapse: collapse;*/
-
-        }
-
-               td.inner-link {
-                       width: 25%;
-                       vertical-align: middle;
-                       text-align: center;
-
-            /*border-right: 2px solid #555555;*/
-
-        }
-
-
-        /* --- 链接样式 --- */
-               a.nav {
-                       color: #1E90FF;
-                       font-size: 18px;
-                       text-decoration: underline;
-                       font-weight: 100;
-                       cursor: pointer; /* 鼠标悬停时显示为手型 */
-
-        }
-
-                   a.nav:hover {
-                           color: #00FF00;
-                           text-decoration: none;
-
-        }
-
-
-        /* --- 1. 新增：下拉菜单样式 --- */
-
-
-
-
-
-        /* 下拉菜单的容器 (父级)，用于定位 */
-                .dropdown-container {
-                       position: relative; /* 关键：让子菜单相对此元素定位 */
-
-        }
-
-
-        /* 下拉菜单内容 (子级) */
-                .dropdown-content {
-                       display: none; /* 默认隐藏 */
-                       position: absolute; /* 弹出，不占空间 */
-                       top: 200%; /* 显示在父级(td)的紧下方 */
-                       left: 0; /* 对齐父级(td)的左侧 */
-                       width: 100%; /* 宽度与父级(td)相同 */
-                       background-color: #000000; /* 下拉菜单背景色 */
-                       border: 2px solid #555555; /* 边框风格统一 */
-                       z-index: 10; /* 确保它在最上层 */
-
-        }
-
-
-            /* 用于JS切换的类，让菜单显示 */
-                    .dropdown-content.show {
-                           display: block;
-
-            }
-
-
-            /* 下拉菜单中的链接 */
-                    .dropdown-content a {
-                           display: block; /* 垂直堆叠 */
-                           color: #1E90FF;
-                           font-size: 16px;
-                           padding: 10px;
-                           text-decoration: none; /* 下拉菜单里的链接通常没有下划线 */
-                           text-align: center; /* 保持居中 */
-
-            }
-
-                .dropdown-content a:hover {
-                       background-color: #555555;
-                       color: #00FF00;
-
-        }
-
-
-        /* --- CSS 新增结束 --- */
-               hr {
-                       border: 0;
-                       height: 2px;
-                       background-color: #555555;
-                       margin: 0;
-
-        }
-
-                .content {
-                       padding: 20px;
-                       color: #FFFFFF;
-
-        }
-
-                    .content h1 {
-                           color: #00FF00;
-
-        }
-
-
-    </style>
+    <link rel="stylesheet" href="header.css">
 </head>
 
 <body>
 
-    <table class="header-nav" border="0" cellpadding="0" cellspacing="0">
-        <tr>
-            <td class="logo">
-                <img src="1.gif" alt="L-MODEL LOGO">
-            </td>
-
-            <td class="links-cell">
-                <table class="inner-nav" border="0" cellpadding="0" cellspacing="0">
-                    <tr>
-                        <td class="inner-link">
-                            <a class="nav" href="surface.html">surface</a>
-                        </td>
-
-
-                        <td class="inner-link dropdown-container">
-
-                            <a class="nav" href="javascript:void(0);" onclick="toggleDropdown('products-menu')">
-                                products
-                            </a>
-
-                            <div id="products-menu" class="dropdown-content">
-                                <a href="vst3.html">VST3 PLUGINS</a>
-                                <a href="hardware.html">HARDWARE</a>
-                            </div>
-
-                        </td>
-                        <td class="inner-link">
-                            <a class="nav" href="storage.html">storage</a>
-                        </td>
-                        <td class="inner-link">
-                            <a class="nav" href="blog.html">blog</a>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-
-    <hr>
+    <div id="header-placeholder"></div>
 
     <div class="content">
         <h1>Welcome to the sphere</h1>
@@ -203,51 +22,18 @@
         <br> <b style="color: #FFFFFF; font-size: 16px; font-family: Arial; font-weight: 100;">
             SYSTEM2: HIIROFOX
         </b>
-
         <br><br><br>
-
         <img src="counter.gif" alt="Site Counter">
-
         <br>
         <b style="color: #FFFFFF; font-size: 20px; font-family: Arial; font-weight: 100;">
             What's New
         </b>
-
         <br>
         <b style="color: #FFFFFF; font-size: 16px; font-family: Arial; font-weight: 100;">
             251031: site construction begins!
         </b>
     </div>
 
-    <script>
-        /*
-          * 切换下拉菜单显示/隐藏的函数
-          */
-        function toggleDropdown(id) {
-            // 1. 关闭所有其他可能已打开的下拉菜单
-            var allDropdowns = document.getElementsByClassName('dropdown-content');
-            for (var i = 0; i < allDropdowns.length; i++) {
-                // 如果它不是我们点击的那个菜单，就强制关闭它
-                if (allDropdowns[i].id !== id) {
-                    allDropdowns[i].classList.remove('show');
-                }
-            }
-
-            // 2. 切换我们点击的那个菜单
-            document.getElementById(id).classList.toggle('show');
-        }
-
-        // (可选) 添加一个全局点击事件，如果点击菜单外部，就关闭所有菜单
-        window.onclick = function(event) {
-            // event.target 就是你点击的元素
-            // .closest('.dropdown-container') 会查找被点击元素是否在下拉菜单容器内
-            if (!event.target.closest('.dropdown-container')) {
-                var allDropdowns = document.getElementsByClassName('dropdown-content');
-                for (var i = 0; i < allDropdowns.length; i++) {
-                    allDropdowns[i].classList.remove('show');
-                }
-            }
-        }
-    </script>
+    <script src="header.js"></script>
 </body>
 </html>
