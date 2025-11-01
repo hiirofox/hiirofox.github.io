@@ -19,9 +19,11 @@ td.logo {
     border-right: 2px solid #555555;
 }
 
-    td.logo img {
-        vertical-align: middle;
-    }
+td.logo img {
+    vertical-align: middle;
+    cursor: pointer;
+    /* 新增：让鼠标悬停时显示为可点击的手型 */
+}
 
 td.links-cell {
     vertical-align: middle;
@@ -46,47 +48,58 @@ a.nav {
     font-size: 18px;
     text-decoration: underline;
     font-weight: 100;
-    cursor: pointer; /* 鼠标悬停时显示为手型 */
+    cursor: pointer;
+    /* 鼠标悬停时显示为手型 */
 }
 
-    a.nav:hover {
-        color: #00FF00;
-        text-decoration: none;
-    }
+a.nav:hover {
+    color: #00FF00;
+    text-decoration: none;
+}
 
 /* --- 下拉菜单样式 --- */
 .dropdown-container {
-    position: relative; /* 关键：让子菜单相对此元素定位 */
+    position: relative;
+    /* 关键：让子菜单相对此元素定位 */
 }
 
 .dropdown-content {
-    display: none; /* 默认隐藏 */
-    position: absolute; /* 弹出，不占空间 */
-    top: 200%; /* 你设置的距离 */
-    left: 0; /* 对齐父级(td)的左侧 */
-    width: 100%; /* 宽度与父级(td)相同 */
-    background-color: #000000; /* 下拉菜单背景色 */
-    border: 2px solid #555555; /* 边框风格统一 */
-    z-index: 10; /* 确保它在最上层 */
+    display: none;
+    /* 默认隐藏 */
+    position: absolute;
+    /* 弹出，不占空间 */
+    top: 200%;
+    /* 你设置的距离 */
+    left: 0;
+    /* 对齐父级(td)的左侧 */
+    width: 100%;
+    /* 宽度与父级(td)相同 */
+    background-color: #000000;
+    /* 下拉菜单背景色 */
+    border: 2px solid #555555;
+    /* 边框风格统一 */
+    z-index: 10;
+    /* 确保它在最上层 */
 }
 
-    .dropdown-content.show {
-        display: block;
-    }
+.dropdown-content.show {
+    display: block;
+}
 
-    .dropdown-content a {
-        display: block; /* 垂直堆叠 */
-        color: #1E90FF;
-        font-size: 16px;
-        padding: 10px;
-        text-decoration: none;
-        text-align: center;
-    }
+.dropdown-content a {
+    display: block;
+    /* 垂直堆叠 */
+    color: #1E90FF;
+    font-size: 16px;
+    padding: 10px;
+    text-decoration: none;
+    text-align: center;
+}
 
-        .dropdown-content a:hover {
-            background-color: #555555;
-            color: #00FF00;
-        }
+.dropdown-content a:hover {
+    background-color: #555555;
+    color: #00FF00;
+}
 
 /* --- 内容区样式 --- */
 hr {
@@ -97,10 +110,70 @@ hr {
 }
 
 .content {
+    flex-grow: 1;
+    /* 关键：让主内容区自动填满所有剩余的空间 */
     padding: 20px;
     color: #FFFFFF;
 }
 
-    .content h1 {
-        color: #00FF00;
-    }
+.content h1 {
+    color: #00FF00;
+    font-size: 24px;
+}
+
+.content smalltitle {
+    color: #00FF00;
+    font-size: 16px;
+    font-family: Arial;
+    font-weight: 100;
+}
+
+.content b {
+    color: #FFFFFF;
+    font-size: 16px;
+    font-family: Arial;
+    font-weight: 100;
+}
+
+/* --- 新增：主内容 + 侧边栏布局 --- */
+.main-wrapper {
+    display: flex;
+    /* 启用 Flexbox 布局 */
+    width: 100%;
+}
+
+.sidebar {
+    /* 设置一个固定的宽度，以容纳 2 个 88px 的按钮 */
+    width: 220px;
+    height: 88px;
+
+    flex-shrink: 0;
+    /* 防止侧边栏在窗口缩小时被压缩 */
+
+    /* 关键：用左边框实现灰色分隔线 */
+    border-left: 2px solid #555555;
+    border-right: 2px solid #555555;
+    border-top: 2px solid #555555;
+    border-bottom: 2px solid #555555;
+    margin: 40px 20px 20px 20px;
+
+    padding: 20px;
+    /* 确保侧边栏内容（如果溢出）从顶部开始 */
+    vertical-align: top;
+}
+
+.button-grid {
+    display: grid;
+    /* 关键：创建 2 个等宽的列 */
+    grid-template-columns: 1fr 1fr;
+
+    /* 设置按钮之间的间距 */
+    gap: 10px;
+}
+
+.button-grid img {
+    /* 确保图片填满其网格单元 */
+    width: 100%;
+    height: auto;
+    /* 保持高宽比 */
+}

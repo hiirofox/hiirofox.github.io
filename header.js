@@ -1,41 +1,70 @@
-/* ÕâÊÇ header.js µÄÈ«²¿ÄÚÈİ */
+/* è¿™æ˜¯ header.js çš„å…¨éƒ¨å†…å®¹ */
 
-/* --- 1. ¸ºÔğ¼ÓÔØ header.html µÄº¯Êı --- */
+/* --- 1. æ–°å¢ï¼šLogo åˆ‡æ¢é€»è¾‘ --- */
+// ä½ çš„ Logo åˆ—è¡¨ï¼Œä½ å¯ä»¥æŒ‰éœ€æ·»åŠ ä»»æ„å¤šå¼ å›¾ç‰‡
+const logoList = [
+    "lmodel1.gif",
+    "lmodel2.gif"
+    // "lmodel3.gif",
+    // "lmodel4.gif"
+];
 
-// ¼àÌıDOM¼ÓÔØÍê³ÉÊÂ¼ş£¬Ò»µ©Íê³É¾ÍÖ´ĞĞ loadHeader
+// è¿½è¸ªå½“å‰ Logo çš„ç´¢å¼•ã€‚
+// å› ä¸º header.html é»˜è®¤æ˜¯ "lmodel2.gif"ï¼Œæ‰€ä»¥ç´¢å¼•ä» 1 å¼€å§‹
+let currentLogoIndex = 1;
+
+function switchLogo() {
+    // 1. ç´¢å¼•+1
+    currentLogoIndex = currentLogoIndex + 1;
+
+    // 2. å¦‚æœç´¢å¼•è¶…å‡ºäº†æ•°ç»„èŒƒå›´ï¼Œå°±å¾ªç¯å› 0
+    if (currentLogoIndex >= logoList.length) {
+        currentLogoIndex = 0;
+    }
+
+    // 3. æ‰¾åˆ°é¡µé¢ä¸Šçš„ Logo å›¾ç‰‡å…ƒç´ 
+    // (æ³¨æ„ï¼šå¿…é¡»åœ¨ header.html åŠ è½½å®Œæˆåæ‰èƒ½æ‰¾åˆ°å®ƒ)
+    const logoImage = document.getElementById("main-logo");
+
+    // 4. å¦‚æœæ‰¾åˆ°äº†å›¾ç‰‡ï¼Œå°±æ›´æ–°å®ƒçš„ src å±æ€§
+    if (logoImage) {
+        logoImage.src = logoList[currentLogoIndex];
+    } else {
+        console.error("é”™è¯¯: æ‰¾ä¸åˆ°IDä¸º 'main-logo' çš„å…ƒç´ ã€‚");
+    }
+}
+/* --- Logo åˆ‡æ¢é€»è¾‘ç»“æŸ --- */
+
+
+/* --- 2. è´Ÿè´£åŠ è½½ header.html çš„å‡½æ•° --- */
 document.addEventListener("DOMContentLoaded", function () {
     loadHeader();
 });
 
 function loadHeader() {
-    // 1. ÕÒµ½Ò³ÃæÉÏ ID Îª 'header-placeholder' µÄÕ¼Î»·û
     var headerPlaceholder = document.getElementById("header-placeholder");
     if (!headerPlaceholder) {
-        console.error("´íÎó: ÕÒ²»µ½IDÎª 'header-placeholder' µÄÔªËØ¡£");
+        console.error("é”™è¯¯: æ‰¾ä¸åˆ°IDä¸º 'header-placeholder' çš„å…ƒç´ ã€‚");
         return;
     }
 
-    // 2. Òì²½×¥È¡ "header.html" ÎÄ¼şµÄÄÚÈİ
     fetch("header.html")
         .then(response => {
-            // ¼ì²éÊÇ·ñ³É¹¦×¥È¡
             if (response.ok) {
                 return response.text();
             }
-            throw new Error('ÍøÂçÏìÓ¦Ê§°Ü¡£');
+            throw new Error('ç½‘ç»œå“åº”å¤±è´¥ã€‚');
         })
         .then(html => {
-            // 3. ½«×¥È¡µ½µÄHTMLÎÄ±¾ÄÚÈİ£¬×¢Èëµ½Õ¼Î»·ûÖĞ
             headerPlaceholder.innerHTML = html;
         })
         .catch(error => {
-            console.error('×¥È¡ header.html ³ö´í:', error);
-            headerPlaceholder.innerHTML = "<p style='color:red;'>²Ëµ¥¼ÓÔØÊ§°Ü¡£</p>";
+            console.error('æŠ“å– header.html å‡ºé”™:', error);
+            headerPlaceholder.innerHTML = "<p style='color:red;'>èœå•åŠ è½½å¤±è´¥ã€‚</p>";
         });
 }
 
-/* --- 2. ¸ºÔğÏÂÀ­²Ëµ¥µÄJS (À´×ÔÄãµÄ<script>¿é) --- */
-
+/* --- 3. è´Ÿè´£ä¸‹æ‹‰èœå•çš„JS --- */
 function toggleDropdown(id) {
     var allDropdowns = document.getElementsByClassName('dropdown-content');
     for (var i = 0; i < allDropdowns.length; i++) {
@@ -50,12 +79,11 @@ function toggleDropdown(id) {
     }
 }
 
-/* --- 3. ¸ºÔğµã»÷Íâ²¿¹Ø±Õ²Ëµ¥µÄJS (¸½¼Óµ½document) --- */
-
+/* --- 4. è´Ÿè´£ç‚¹å‡»å¤–éƒ¨å…³é—­èœå•çš„JS --- */
 document.addEventListener('click', function (event) {
-    // ¼ì²éµã»÷µÄÔªËØÊÇ·ñÔÚ .dropdown-container ÄÚ²¿
-    if (!event.target.closest('.dropdown-container')) {
-        // Èç¹û²»ÔÚ£¬¾Í¹Ø±ÕËùÓĞ²Ëµ¥
+    // æ£€æŸ¥ç‚¹å‡»çš„å…ƒç´ æ˜¯å¦åœ¨ .dropdown-container å†…éƒ¨
+    // åŒæ—¶æ£€æŸ¥ç‚¹å‡»çš„æ˜¯å¦æ˜¯ Logo æœ¬èº«
+    if (!event.target.closest('.dropdown-container') && !event.target.closest('#main-logo')) {
         var allDropdowns = document.getElementsByClassName('dropdown-content');
         for (var i = 0; i < allDropdowns.length; i++) {
             allDropdowns[i].classList.remove('show');
