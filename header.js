@@ -3,10 +3,10 @@
 /* --- 1. 新增：Logo 切换逻辑 --- */
 // 你的 Logo 列表，你可以按需添加任意多张图片
 const logoList = [
-    "lmodel1.gif",
-    "lmodel2.gif"
-    // "lmodel3.gif",
-    // "lmodel4.gif"
+    "/lmodel1.gif",
+    "/lmodel2.gif"
+    // "/lmodel3.gif",
+    // "/lmodel4.gif"
 ];
 
 // 追踪当前 Logo 的索引。
@@ -48,7 +48,7 @@ function loadHeader() {
         return;
     }
 
-    fetch("header.html")
+    fetch("/header.html")
         .then(response => {
             if (response.ok) {
                 return response.text();

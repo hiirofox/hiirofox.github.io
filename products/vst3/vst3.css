@@ -1,0 +1,99 @@
+/* 这是 vst3.css 的全部内容 */
+
+/* 插件内容的整体包装器 */
+.plugin-section-wrapper {
+    display: flex;
+    /* 启用 flex 布局 */
+    flex-direction: column;
+    /* 插件块垂直堆叠 */
+    align-items: center;
+    /* 关键：让所有插件块在网页上水平居中 */
+    width: 100%;
+}
+
+/* 每一个单独的插件块 (图片 + 文字) */
+.plugin-block {
+    display: flex;
+    align-items: center;
+    /* 确保文字和图片垂直居中对齐 */
+    margin-bottom: 70px;
+    /* 插件块之间的垂直间距 */
+
+    /* 限制最大宽度，防止在大屏幕上拉得太开 */
+    width: 100%;
+    max-width: 1200px;
+}
+
+.plugin-image {
+    flex: 1;
+    /* 占据 1 份空间 */
+    padding: 0 20px;
+    display: flex;
+    /* 新增：启用Flex布局 */
+    align-items: center;
+    /* 新增：垂直居中图片 */
+
+    /** 关键：默认让图片“靠右”对齐。
+* (对应“文字在右侧，向左对齐”的布局)
+ */
+    justify-content: flex-end;
+}
+
+.plugin-image img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* 插件文字 */
+.plugin-text {
+    flex: 1;
+    /* 占据 1 份空间 */
+    padding: 0 20px;
+}
+
+/* --- 布局修改器 --- */
+
+/* “图片在右侧” 的修改器 */
+.plugin-block.image-right {
+    flex-direction: row-reverse;
+    /* 关键：翻转图片和文字的顺序 */
+}
+
+/* “文字在左侧” 的修改器 */
+.plugin-block.image-right .plugin-text {
+    text-align: right;
+    /* 文字向右对齐 */
+}
+
+
+/* --- 文字内容样式 --- */
+
+.plugin-name {
+    color: #00FF00;
+    /* 复古绿色 */
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.plugin-download a {
+    color: #1E90FF;
+    /* 蓝色 */
+    font-size: 18px;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+.plugin-download a:hover {
+    color: #00FF00;
+}
+
+.plugin-description {
+    color: #FFFFFF;
+    /* 白色 */
+    font-size: 16px;
+    margin-top: 15px;
+}
+
+.plugin-block.image-right .plugin-image {
+    justify-content: flex-start;
+}
