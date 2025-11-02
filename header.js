@@ -4,8 +4,8 @@
 // 你的 Logo 列表，你可以按需添加任意多张图片
 const logoList = [
     "/lmodel1.gif",
-    "/lmodel2.gif"
-    // "/lmodel3.gif",
+    "/lmodel2.gif",
+    "/lmodel3.gif"
     // "/lmodel4.gif"
 ];
 
