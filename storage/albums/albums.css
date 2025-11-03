@@ -1,0 +1,63 @@
+/* 这是 /storage/albums/albums.css 的全部内容 */
+
+/* * 1. 专辑内容的整体包装器
+ * 它负责让所有的 .album-block 在页面上水平居中。
+ */
+.album-wrapper {
+    display: flex;
+    flex-direction: column;
+    /* 让所有专辑垂直堆叠 */
+    align-items: left;
+    /* 关键：让所有子元素 (专辑块) 水平居中 */
+    width: 100%;
+}
+
+/* * 2. 单个专辑块 (播放器 + 文字) 
+ */
+.album-block {
+    display: flex;
+    align-items: center;
+    /* 让播放器和文字垂直居中对齐 */
+    width: 100%;
+    max-width: 900px;
+    /* 限制最大宽度，防止在大屏幕上拉得太开 */
+    margin-bottom: 50px;
+    /* 每个专辑块下方的间距 */
+}
+
+/* * 3. 左侧的播放器容器
+ */
+.album-player {
+    /* * 给播放器一个固定的基础宽度。
+ * Bandcamp 的播放器(size=large)宽度在 350px-400px 之间最合适。
+ */
+    flex-basis: 400px;
+    flex-shrink: 0;
+    /* 防止播放器被压缩 */
+}
+
+/* * 4. 右侧的文字信息容器 
+ */
+.album-info {
+    flex: 1;
+    /* 自动填满剩余空间 */
+    padding-left: 30px;
+    /* 在播放器和文字之间创建一些间距 */
+}
+
+/* 5. 专辑标题 */
+.album-title {
+    color: #00FF00;
+    /* 匹配你网站的 h1 标题颜色 */
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+/* 6. 专辑描述 */
+.album-description {
+    color: #FFFFFF;
+    font-size: 16px;
+    line-height: 1.6;
+    /* 增加行高，更易读 */
+}
