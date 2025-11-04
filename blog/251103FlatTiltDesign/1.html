@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flat Tilt Design</title>
+
+    
+    <link rel="stylesheet" href="/header.css">
+    <link rel="stylesheet" href="1.css">
+
+</head>
+
+<body>
+    <div id="header-placeholder"></div>
+
+    <div class="main-wrapper">
+
+        <div class="content">
+            <h1>251103 Flat Tilt Design</h1>
+
+            <p>本文由 Gemini AI 编写。</p>
+
+            <p>Tilt 滤波器是一种非常实用的工具，它可以同时提升或衰减一个频段，同时反向处理另一个频段。标准的 Tilt 滤波器（如
+                Baxandall）的斜率是固定的，但在极高或极低频时会归于平坦。我们的目标是设计一个“Flat Tilt”滤波器，使其在非常宽的频率范围内（例如从 20Hz 到 20kHz）都保持恒定的斜率。
+            </p>
+            <p>实现方法：通过级联（Stitching）大量间隔开的搁架（Shelf）滤波器来“拼接”出一条平坦的斜线。</p>
+
+            <h2>模拟域 (s-Domain) 的思考</h2>
+
+            <p>我们首先在连续域（模拟域）中定义标准的一阶 Low-shelf 和 High-shelf 滤波器。一个 Shelf 滤波器的伯德图（Bode plot）可以近似为三条直线：两条平坦的（增益为 0dB 和 B
+                dB），以及一条斜率为 kdB/decade（一阶）或 2kdB/decade（二阶）的斜线。斜线的斜率与B有关。</p>
+
+            <p>我们的核心思想是：如果我们有间隔地级联（相乘）一系列 Low-shelf 和 High-shelf
+                滤波器，我们就可以将它们各自的“斜线”部分拼接起来，形成一条横跨多个频程（decades）的、单一且平滑的直线。</p>
+            
+            <a href="https://www.desmos.com/calculator/2oeivrr745" target="_blank">desmos快照</a>
+            <!--
+            <img src="/blog/assets/image_73f065.png" alt="Desmos Graph of Tilt Filter Stitching"
+     style="max-width:800px;">
+
+            <blockquote>
+                <b>图解：</b><br>
+                - <b>黑线:</b> 我们的目标理想斜率。<br>
+                - <b>绿线:</b> 单个 High-shelf 滤波器的响应。<br>
+                - <b>红线:</b> 级联多个 Shelf 滤波器的最终响应。可见，红线在很宽的范围内与黑线完美重合。
+            </blockquote>-->
+            <!--
+            <p>下图是 Desmos 中用于计算间隔 `m` 和 `w` 的一些关键参数：</p>
+            <img src="/blog/assets/image_73efeb.png" alt="Desmos Math Parameters" style="max-width:400px;">
+-->
+            <h2>数字域 (z-Domain) 的实现</h2>
+
+            <p>从模拟域转换到数字域时，标准的双线性变换（Bilinear Transform）会导致频率弯曲（frequency
+                warping），尤其是在接近奈奎斯特（Nyquist）频率时，这会破坏我们精心拼接的直线斜率。</p>
+
+            <p>为了解决这个问题，我们参考了 Martin Vicanek 的一篇优秀论文，它提供了一种设计数字IIR滤波器的方法，使其响应与模拟二阶巴特沃斯搁架滤波器（Analog 2nd-order Butterworth
+                shelving filter）高度匹配。</p>
+
+            <blockquote>
+                <b>参考论文:</b><br>
+                Matched Two-Pole Digital Shelving Filters - Martin Vicanek (2012)
+            </blockquote>
+
+            <p>Vicanek 的方法对于高频响应的匹配非常出色。不过，他的论文是针对二阶（40dB/decade）的 Shelf。而我们的设计是基于一阶（20dB/decade）的
+                Shelf。因为二阶的“斜率”是一阶的加倍，我们仅需适当调整滤波器之间的几何间隔 `m` 即可完成适配。经过推导和实验，我们找到了一个最佳的间隔系数，可以在数字域中获得最佳的直线精度。</p>
+
+            <h2>实现思路与鲁棒性</h2>
+
+            <p>在实现中，我们采用了一个动态调整的算法，而不是固定级联数量。我们设定一个最大级联数（例如每边12个），然后从中心截止频率 `cutoff` 开始，分别向低频和高频两个方向进行级联。</p>
+
+            <p>在级联过程中，算法会实时计算下一个 Shelf 滤波器的截止频率。如果这个频率过低（例如低于 5Hz）或过高（例如超过采样率的 4 倍），则该方向的叠加会立即停止。这确保了算法的鲁棒性，避免了在频谱两端（如
+                DC 或 Nyquist 附近）产生不必要的计算或不稳定的行为，同时只在需要的频率范围内应用滤波器。</p>
+
+            <h2>结论</h2>
+            <p>通过结合模拟域的“斜率拼接”思想和 Martin Vicanek 的数字滤波器匹配技术，我们成功设计并实现了一个高性能、高精度的 Flat Tilt
+                滤波器。它不仅在极宽的频率范围内保持了恒定的斜率，并且通过动态停止叠加的算法，保证了其在全频带内的稳定性和鲁棒性。这个设计已经应用在 L-MODEL 的插件中，例如 LMEqualizerV2。</p>
+
+        </div>
+
+
+    </div>
+    <script src="/header.js"></script>
+</body>
+
+</html>

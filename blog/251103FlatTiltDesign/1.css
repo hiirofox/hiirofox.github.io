@@ -1,0 +1,30 @@
+.content p,
+.content li {
+    color: #FFFFFF;
+    font-size: 16px;
+    line-height: 1.7;
+    /* 增加行高，易于阅读 */
+}
+
+.content h2 {
+    color: #00FF00;
+    /* 匹配 h1 颜色 */
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+}
+
+.content img {
+    border: 1px solid #555;
+    max-width: 100%;
+    /* 确保图片响应式 */
+    margin: 15px 0;
+}
+
+/* 引用和代码块样式 */
+blockquote {
+    background-color: #222;
+    border-left: 4px solid #00FF00;
+    padding: 10px 15px;
+    margin: 15px 0;
+    color: #ccc;
+}
