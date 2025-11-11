@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <title>RPDFAM Online</title>
+
+    <link rel="stylesheet" href="/header.css">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="header-placeholder"></div>
+
+    <div class="container">
+        <h1>RPDFAM Online</h1>
+
+        <div class="button-container">
+            <button id="startButton">Start Audio</button>
+            <button id="randomButton">Randomize</button>
+        </div>
+
+        <div class="knob-grid main-knobs">
+            <div class="knob-wrapper"><canvas id="knob-bpm" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-detune" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-ctof" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-ctofdecay" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-reso" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-famount" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-fdecay" width="64" height="64"></canvas></div>
+        </div>
+        <div class="knob-grid seq-knobs">
+            <div class="knob-wrapper"><canvas id="knob-seqf1" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqf2" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqf3" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqf4" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqf5" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqf6" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqf7" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqf8" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv1" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv2" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv3" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv4" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv5" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv6" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv7" width="64" height="64"></canvas></div>
+            <div class="knob-wrapper"><canvas id="knob-seqv8" width="64" height="64"></canvas></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+
+    <script src="/header.js"></script>
+
+</body>
+
+</html>

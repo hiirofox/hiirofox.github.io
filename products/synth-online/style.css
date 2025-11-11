@@ -1,0 +1,61 @@
+/* body {...} 样式块已移除，由 /header.css 控制 */
+
+.container { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    gap: 15px; 
+    /* 为顶部的 header 留出一些空间 */
+    margin-top: 20px; 
+}
+
+.button-container {
+    display: flex;
+    gap: 10px;
+}
+
+/* 确保合成器按钮的字体也一致 */
+#startButton, #randomButton { 
+    background-color: #336;
+    color: #7F7;
+    border: 2px solid #7F7;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: 'FIXEDSYS', monospace; 
+}
+#startButton:hover, #randomButton:hover {
+    background-color: #66C;
+}
+#randomButton {
+    background-color: #363;
+}
+#randomButton:hover {
+    background-color: #6C6;
+}
+
+.knob-grid { 
+    display: grid; 
+    gap: 0px;
+}
+.main-knobs { 
+    grid-template-columns: repeat(7, 1fr); 
+}
+.seq-knobs { 
+    grid-template-columns: repeat(8, 1fr); 
+}
+canvas { 
+    display: block; 
+    cursor: ns-resize; 
+}
+.knob-wrapper { 
+    width: 64px; 
+    height: 64px; 
+}
+
+/* 修复：为合成器页面的 H1 标签设置颜色 */
+.container h1 {
+    color: #00FF00; /* 设置为绿色，与您网站的风格一致 */
+    font-size: 24px;
+    font-family: 'FIXEDSYS', monospace;
+}
