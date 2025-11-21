@@ -1,4 +1,3 @@
-
 body {
     background-color: #000000;
     color: #00FF00;
@@ -48,7 +47,7 @@ body {
     background: black;
     border: 1px solid #00FF00;
     box-shadow: 0 0 10px rgba(0,255,0,0.1);
-    will-change: transform; 
+    /* 关键修改：移除了 will-change: transform; 这能保证缩放时文字依然锐利 */
 }
 
 /* Selection Style: No white border */
@@ -72,8 +71,9 @@ body {
 
 /* Grid Pattern */
 #grid-layer {
-    background-image: linear-gradient(#112211 1px, transparent 1px),
-                      linear-gradient(90deg, #112211 1px, transparent 1px);
+    /* 关键修改：颜色改为 #003300 */
+    background-image: linear-gradient(#003300 1px, transparent 1px),
+                      linear-gradient(90deg, #003300 1px, transparent 1px);
     background-size: 20px 20px;
 }
 

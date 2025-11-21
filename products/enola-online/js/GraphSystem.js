@@ -1,13 +1,15 @@
 
 import { NodeRenderers } from './ui/NodeTemplates.js';
 
+const GRID_SIZE = 20; // 吸附网格大小
+
 export class GraphSystem {
     constructor(containerId, callbacks) {
         this.container = document.getElementById(containerId);
         this.contentLayer = document.getElementById('content-layer');
         this.nodesLayer = document.getElementById('nodes-layer');
         this.svgLayer = document.getElementById('connections-layer');
-
+        
         this.rubberBand = document.getElementById('selection-box');
         this.groupBox = document.getElementById('group-selection-box');
 
@@ -15,18 +17,26 @@ export class GraphSystem {
 
         this.nodes = new Map();
         this.edges = [];
-
+        
         // View State
         this.view = { x: 0, y: 0, scale: 1.0 };
-
+        
         // Interaction States
-        this.dragState = { active: false, type: null, targetId: null };
-        this.connectionState = { active: false, startNodeId: null, startHandle: null, startType: null, startEl: null };
-        this.selectionState = { active: false, startX: 0, startY: 0 };
+        // accumulated & initialPositions added for absolute grid snapping
+        this.dragState = { 
+            active: false, 
+            type: null, 
+            targetId: null,
+            accumulated: { x: 0, y: 0 },
+            initialPositions: new Map()
+        };
 
+        this.connectionState = { active: false, startNodeId: null, startHandle: null, startType: null, startEl: null };
+        this.selectionState = { active: false, startX: 0, startY: 0 }; 
+        
         this.initEvents();
         this.updateTransform();
-        console.log("GraphSystem initialized");
+        console.log("GraphSystem initialized with Absolute Snapping");
     }
 
     // --- Coordinate Systems ---
@@ -65,7 +75,7 @@ export class GraphSystem {
                 this.view.y = mouseY - worldY * newScale;
             } else {
                 if (e.shiftKey) this.view.x -= e.deltaY;
-                else this.view.y -= e.deltaY;
+                else this.view.y -= e.deltaY; 
             }
             this.updateTransform();
         }, { passive: false });
@@ -73,11 +83,11 @@ export class GraphSystem {
         // 2. Mouse Down
         this.container.addEventListener('mousedown', (e) => {
             const validBg = [
-                this.container,
+                this.container, 
                 document.getElementById('grid-layer'),
                 this.svgLayer,
                 this.contentLayer,
-                this.nodesLayer
+                this.nodesLayer 
             ];
 
             const isNode = e.target.closest('.node-container');
@@ -89,7 +99,7 @@ export class GraphSystem {
                 const rect = this.container.getBoundingClientRect();
                 this.selectionState.startX = e.clientX - rect.left;
                 this.selectionState.startY = e.clientY - rect.top;
-
+                
                 this.rubberBand.style.left = this.selectionState.startX + 'px';
                 this.rubberBand.style.top = this.selectionState.startY + 'px';
                 this.rubberBand.style.width = '0px';
@@ -100,29 +110,37 @@ export class GraphSystem {
 
         // 3. Mouse Move
         document.addEventListener('mousemove', (e) => {
-            // Node Drag (Group Drag Support)
+            // Node Drag (Absolute Grid Snapping)
             if (this.dragState.active && this.dragState.type === 'NODE') {
-                const draggingNode = this.nodes.get(this.dragState.targetId);
+                // 1. Accumulate raw mouse movement
+                this.dragState.accumulated.x += e.movementX / this.view.scale;
+                this.dragState.accumulated.y += e.movementY / this.view.scale;
 
-                if (draggingNode) {
-                    const dx = e.movementX / this.view.scale;
-                    const dy = e.movementY / this.view.scale;
+                // 2. Get initial position of the LEADER node (the one we are dragging)
+                const leaderInitial = this.dragState.initialPositions.get(this.dragState.targetId);
+                
+                if (leaderInitial) {
+                    // 3. Calculate where the leader SHOULD be (Raw)
+                    const rawX = leaderInitial.x + this.dragState.accumulated.x;
+                    const rawY = leaderInitial.y + this.dragState.accumulated.y;
 
-                    // CHECK: Is the dragged node selected?
-                    if (draggingNode.element.classList.contains('selected')) {
-                        // Move ALL selected nodes
-                        const selectedNodes = this.getSelectedNodes();
-                        selectedNodes.forEach(node => {
-                            node.x += dx;
-                            node.y += dy;
+                    // 4. Snap absolute position to Grid (Top-Left alignment)
+                    const snappedX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
+                    const snappedY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
+
+                    // 5. Calculate the delta needed to get from Initial -> Snapped
+                    const moveDx = snappedX - leaderInitial.x;
+                    const moveDy = snappedY - leaderInitial.y;
+
+                    // 6. Apply this delta to ALL selected nodes (maintains relative positions)
+                    this.dragState.initialPositions.forEach((initPos, id) => {
+                        const node = this.nodes.get(id);
+                        if(node) {
+                            node.x = initPos.x + moveDx;
+                            node.y = initPos.y + moveDy;
                             node.element.style.transform = `translate(${node.x}px, ${node.y}px)`;
-                        });
-                    } else {
-                        // Move only the dragged node (fallback, though usually click selects it)
-                        draggingNode.x += dx;
-                        draggingNode.y += dy;
-                        draggingNode.element.style.transform = `translate(${draggingNode.x}px, ${draggingNode.y}px)`;
-                    }
+                        }
+                    });
 
                     this.updateEdges();
                     this.renderGroupSelectionBox();
@@ -140,7 +158,7 @@ export class GraphSystem {
                 const rect = this.container.getBoundingClientRect();
                 const currentX = e.clientX - rect.left;
                 const currentY = e.clientY - rect.top;
-
+                
                 const startX = this.selectionState.startX;
                 const startY = this.selectionState.startY;
 
@@ -156,7 +174,7 @@ export class GraphSystem {
 
                 const worldStart = this.screenToWorld(rect.left + x, rect.top + y);
                 const worldEnd = this.screenToWorld(rect.left + x + w, rect.top + y + h);
-
+                
                 this.updateSelection(worldStart.x, worldStart.y, worldEnd.x - worldStart.x, worldEnd.y - worldStart.y);
             }
         });
@@ -170,11 +188,13 @@ export class GraphSystem {
             if (this.selectionState.active) {
                 this.selectionState.active = false;
                 this.rubberBand.classList.add('hidden');
-                this.renderGroupSelectionBox();
+                this.renderGroupSelectionBox(); 
             }
 
+            // Clear drag state
             this.dragState.active = false;
             this.dragState.targetId = null;
+            this.dragState.initialPositions.clear();
         });
     }
 
@@ -184,7 +204,7 @@ export class GraphSystem {
         this.connectionState.active = true;
         this.connectionState.startNodeId = nodeId;
         this.connectionState.startHandle = handleId;
-        this.connectionState.startType = type; // 'source' or 'target'
+        this.connectionState.startType = type; 
         this.connectionState.startEl = portEl;
     }
 
@@ -207,7 +227,7 @@ export class GraphSystem {
         }
         this.connectionState.active = false;
         const tempLine = document.getElementById('temp-line');
-        if (tempLine) tempLine.remove();
+        if(tempLine) tempLine.remove();
     }
 
     tryConnect(sourceId, sourceHandle, targetId, targetHandle) {
@@ -237,7 +257,7 @@ export class GraphSystem {
     }
 
     removeEdge(sourceId, targetId, sourceHandle, targetHandle) {
-        this.edges = this.edges.filter(e =>
+        this.edges = this.edges.filter(e => 
             !(e.source === sourceId && e.target === targetId && e.sourceHandle === sourceHandle && e.targetHandle === targetHandle)
         );
         this.renderEdges();
@@ -250,8 +270,8 @@ export class GraphSystem {
     getPortWorldPos(portEl) {
         const rect = portEl.getBoundingClientRect();
         const containerRect = this.container.getBoundingClientRect();
-        const screenX = rect.left - containerRect.left + rect.width / 2;
-        const screenY = rect.top - containerRect.top + rect.height / 2;
+        const screenX = rect.left - containerRect.left + rect.width/2;
+        const screenY = rect.top - containerRect.top + rect.height/2;
         return {
             x: (screenX - this.view.x) / this.view.scale,
             y: (screenY - this.view.y) / this.view.scale
@@ -263,17 +283,14 @@ export class GraphSystem {
         this.edges.forEach(edge => {
             const sourceNode = this.nodes.get(edge.source);
             const targetNode = this.nodes.get(edge.target);
-            if (!sourceNode || !targetNode) return;
+            if(!sourceNode || !targetNode) return;
 
             const sourcePort = sourceNode.element.querySelector(`.port[data-handleid="${edge.sourceHandle}"]`);
             const targetPort = targetNode.element.querySelector(`.port[data-handleid="${edge.targetHandle}"]`);
-
+            
             if (sourcePort && targetPort) {
                 const sPos = this.getPortWorldPos(sourcePort);
                 const tPos = this.getPortWorldPos(targetPort);
-
-                // Static connections always go OUT(Source) -> IN(Target)
-                // So sPos is Right-facing, tPos is Left-facing
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 path.setAttribute("d", this.getBezierPath(sPos.x, sPos.y, tPos.x, tPos.y, 'source', 'target'));
                 path.setAttribute("stroke", "#00FF00");
@@ -298,46 +315,30 @@ export class GraphSystem {
 
         if (this.connectionState.startEl) {
             const sPos = this.getPortWorldPos(this.connectionState.startEl);
-            const startType = this.connectionState.startType; // 'source' or 'target'
-
-            // Logic:
-            // If starting from SOURCE (Output), we are dragging towards a potential Input.
-            // Curve should start going RIGHT.
-            // If starting from TARGET (Input), we are dragging towards a potential Output.
-            // Curve should start going LEFT.
-
+            const startType = this.connectionState.startType;
             temp.setAttribute("d", this.getBezierPath(sPos.x, sPos.y, worldX, worldY, startType, null));
         }
     }
 
-    // Updated Bezier to handle start direction
     getBezierPath(sx, sy, tx, ty, startType, endType) {
         const dist = Math.abs(tx - sx);
-        const padding = Math.max(dist * 0.5, 50);
+        // "Stiffer" Bezier
+        const padding = Math.max(Math.min(dist * 0.25, 80), 30);
 
         let cp1x, cp2x;
 
-        // If startType is 'source', line goes RIGHT (+padding)
-        // If startType is 'target', line goes LEFT (-padding)
         if (startType === 'source') {
             cp1x = sx + padding;
         } else {
             cp1x = sx - padding;
         }
 
-        // End control point logic
-        // If we have a definite endType (like in renderEdges), we match it.
-        // 'target' (Input) enters from LEFT, so CP is to the Left (-padding)
-        // 'source' (Output) enters from RIGHT, so CP is to the Right (+padding)
-        // If endType is null (mouse drag), we simply invert logic or follow cursor direction?
-        // For mouse drag, usually we treat mouse as "opposite" of start.
         if (endType) {
             if (endType === 'target') cp2x = tx - padding;
             else cp2x = tx + padding;
         } else {
-            // Dragging to mouse
-            if (startType === 'source') cp2x = tx - padding; // Mouse acts like Input
-            else cp2x = tx + padding; // Mouse acts like Output
+            if (startType === 'source') cp2x = tx - padding; 
+            else cp2x = tx + padding; 
         }
 
         return `M ${sx} ${sy} C ${cp1x} ${sy}, ${cp2x} ${ty}, ${tx} ${ty}`;
@@ -368,7 +369,7 @@ export class GraphSystem {
     getSelectedNodes() {
         const selected = [];
         this.nodes.forEach(node => {
-            if (node.element.classList.contains('selected')) selected.push(node);
+            if(node.element.classList.contains('selected')) selected.push(node);
         });
         return selected;
     }
@@ -402,16 +403,28 @@ export class GraphSystem {
         const el = renderer(nodeData.id, nodeData.data, this.callbacks.onNodeChange, this.callbacks.onContext);
         el.id = nodeData.id;
         el.style.transform = `translate(${nodeData.position.x}px, ${nodeData.position.y}px)`;
-
+        
         const header = el.querySelector('.header-drag-handle');
         header.addEventListener('mousedown', (e) => {
             if (e.button === 0) {
                 e.stopPropagation();
+                
+                // Reset accumulator & Capture initial state
+                this.dragState.accumulated = { x: 0, y: 0 };
+                this.dragState.initialPositions = new Map();
+
                 if (!el.classList.contains('selected')) {
                     if (!e.shiftKey) this.deselectAll();
                     el.classList.add('selected');
                 }
                 this.renderGroupSelectionBox();
+                
+                // Capture positions for ALL selected nodes
+                const selectedNodes = this.getSelectedNodes();
+                selectedNodes.forEach(node => {
+                    this.dragState.initialPositions.set(node.id, { x: node.x, y: node.y });
+                });
+
                 this.dragState.active = true;
                 this.dragState.type = 'NODE';
                 this.dragState.targetId = nodeData.id;
@@ -432,7 +445,7 @@ export class GraphSystem {
                     if (existingEdge) {
                         this.callbacks.onDisconnect(existingEdge.source, existingEdge.target, existingEdge.sourceHandle, existingEdge.targetHandle);
                         this.removeEdgeInternal(existingEdge.id);
-
+                        
                         const sourceNode = this.nodes.get(existingEdge.source);
                         if (sourceNode) {
                             const sourcePort = sourceNode.element.querySelector(`.port[data-handleid="${existingEdge.sourceHandle}"]`);

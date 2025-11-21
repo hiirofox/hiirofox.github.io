@@ -18,14 +18,11 @@ export class Gain extends BaseNode {
         const cvIn = e.inputBuffer.getChannelData(1);
         const out = e.outputBuffer.getChannelData(0);
 
-        const hasCV = (e.inputBuffer.numberOfChannels > 1);
-
         for (let i=0; i<out.length; i++) {
             const audio = audioIn[i];
-            const cv = hasCV ? cvIn[i] : 0;
+            const cv = cvIn[i];
             
             let control = cv + this.amount;
-            if (control < 0) control = 0;
 
             out[i] = audio * control;
         }
