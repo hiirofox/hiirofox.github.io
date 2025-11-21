@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enola Online (Static)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-black text-[#00FF00] font-arial overflow-hidden h-screen select-none">
+    
+    <div id="toolbar" class="h-10 border-b border-[#00FF00] flex items-center px-4 bg-black justify-between z-50 relative">
+        <div class="flex items-center gap-6">
+            <h1 class="text-lg font-bold tracking-widest">ENOLA_ONLINE</h1>
+            <div id="controls-area">
+                <button id="init-btn" class="bg-[#003300] hover:bg-[#005500] text-[#00FF00] border border-[#00FF00] px-2 py-0 text-sm uppercase">
+                    [ Initialize ]
+                </button>
+                <div id="node-buttons" class="flex gap-1 hidden">
+                    <button data-type="OSCILLATOR" class="toolbar-btn">VCO</button>
+                    <button data-type="FILTER" class="toolbar-btn">VCF</button>
+                    <button data-type="GAIN" class="toolbar-btn">VCA</button>
+                    <button data-type="LFO" class="toolbar-btn">LFO</button>
+                    <div class="w-2"></div>
+                    <button data-type="CLOCK" class="toolbar-btn">CLOCK</button>
+                    <button data-type="SEQUENCER" class="toolbar-btn">SEQ</button>
+                </div>
+            </div>
+        </div>
+        <div class="text-[#00FF00] text-[10px] uppercase">v1.0.6 / FIXED-ALL</div>
+    </div>
+
+    <div id="workspace" class="relative w-full h-full bg-black overflow-hidden cursor-default">
+        
+        <div id="content-layer" class="absolute inset-0 origin-top-left will-change-transform">
+            <div id="grid-layer" class="absolute inset-[-4000px] w-[8000px] h-[8000px] pointer-events-none opacity-20"></div>
+            
+            <svg id="connections-layer" class="absolute inset-0 w-full h-full pointer-events-none overflow-visible z-0"></svg>
+            
+            <div id="nodes-layer" class="absolute inset-0 w-full h-full z-10"></div>
+
+            <div id="group-selection-box" class="absolute border-2 border-[#00FF00] border-dashed pointer-events-none hidden z-20"></div>
+        </div>
+
+        <div id="selection-box" class="absolute border border-[#00FFFF] border-dashed bg-[#00FFFF]/10 hidden z-50 pointer-events-none"></div>
+
+        <div id="standby-overlay" class="absolute inset-0 bg-black/90 flex items-center justify-center z-50 pointer-events-none">
+            <div class="text-[#00FF00] text-center border border-[#00FF00] p-8 bg-black">
+                <p class="text-2xl mb-2 font-bold">SYSTEM STANDBY</p>
+                <p class="text-sm">Waiting for user input...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="context-menu" class="fixed z-50 bg-black border border-[#00FF00] text-[#00FF00] text-xs shadow-lg hidden">
+        <div id="ctx-duplicate" class="px-4 py-2 hover:bg-[#003300] cursor-pointer border-b border-[#003300]">DUPLICATE (Wires)</div>
+        <div id="ctx-copy" class="px-4 py-2 hover:bg-[#003300] cursor-pointer border-b border-[#003300]">COPY (Module Only)</div>
+        <div id="ctx-delete" class="px-4 py-2 hover:bg-[#330000] cursor-pointer text-[#FF5555]">DELETE</div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
