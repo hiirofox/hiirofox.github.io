@@ -19,27 +19,27 @@ export class Clock extends BaseNode {
     this.updateTimings();
 
     this.processor = this.context.createScriptProcessor(1024, 0, 2);
-    
+
     this.processor.onaudioprocess = (e) => {
       const out0 = e.outputBuffer.getChannelData(0);
       const out1 = e.outputBuffer.getChannelData(1);
-      
+
+      const pulseWidthSamples = Math.floor(0.01 * this.sampleRate);
+
       for (let i = 0; i < out0.length; i++) {
         this.counter++;
-        
-        const pulseWidthSamples = Math.floor(0.01 * this.sampleRate);
-        
+
         if (this.counter >= this.samplesPerBeat) {
-            this.counter = 0;
-            this.isHigh = true;
-            this.divCounter++;
-            if (this.divCounter >= 8) {
-                this.divCounter = 0;
-            }
+          this.counter = 0;
+          this.isHigh = true;
+          this.divCounter++;
+          if (this.divCounter >= 8) {
+            this.divCounter = 0;
+          }
         }
 
         if (this.counter > pulseWidthSamples) {
-            this.isHigh = false;
+          this.isHigh = false;
         }
 
         const signal = this.isHigh ? 1.0 : 0.0;
@@ -49,7 +49,7 @@ export class Clock extends BaseNode {
     };
 
     this.output = this.processor;
-    
+
     const silencer = this.context.createGain();
     silencer.gain.value = 0;
     this.output.connect(silencer);
@@ -57,13 +57,13 @@ export class Clock extends BaseNode {
   }
 
   updateTimings() {
-     this.samplesPerBeat = (60 / this.bpm) * this.sampleRate * 0.5; 
+    this.samplesPerBeat = (60 / this.bpm) * this.sampleRate * 0.5 / 16;
   }
 
   setProperty(key, value) {
     if (key === 'bpm') {
-        this.bpm = value;
-        this.updateTimings();
+      this.bpm = value;
+      this.updateTimings();
     }
   }
 }

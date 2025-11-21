@@ -1,21 +1,24 @@
-
 import { BaseNode } from './BaseNode.js';
 
 export class Sequencer extends BaseNode {
   constructor(id, context) {
     super(id, context);
     this.processor = null;
+    this.merger = null;
     this.currentStep = 0;
-    this.stepValues = [0,0,0,0,0,0,0,0];
+    this.stepValues = [0, 0, 0, 0, 0, 0, 0, 0];
     this.lastTrig = 0;
     this.lastReset = 0;
   }
 
   initialize(initialValues) {
+    // Input 0: Trig, Input 1: Reset
+    this.merger = this.context.createChannelMerger(2);
     this.processor = this.context.createScriptProcessor(1024, 2, 1);
-    
-    for(let i=0; i<8; i++) {
-        this.stepValues[i] = initialValues?.[`step${i}`] || 0;
+    this.merger.connect(this.processor);
+
+    for (let i = 0; i < 8; i++) {
+      this.stepValues[i] = initialValues?.[`step${i}`] || 0;
     }
 
     this.processor.onaudioprocess = (e) => {
@@ -28,26 +31,26 @@ export class Sequencer extends BaseNode {
         const r = resetIn[i];
 
         if (r > 0.5 && this.lastReset <= 0.5) {
-            this.currentStep = 0;
+          this.currentStep = 0;
         }
 
         if (t > 0.5 && this.lastTrig <= 0.5) {
-            this.currentStep++;
-            if (this.currentStep >= 8) {
-                this.currentStep = 0;
-            }
+          this.currentStep++;
+          if (this.currentStep >= 8) {
+            this.currentStep = 0;
+          }
         }
 
         this.lastTrig = t;
         this.lastReset = r;
 
-        cvOut[i] = this.stepValues[this.currentStep];
+        cvOut[i] = this.stepValues[this.currentStep] / 1000.0;
       }
     };
 
-    this.input = this.processor; 
+    this.input = this.merger;
     this.output = this.processor;
-    
+
     const silencer = this.context.createGain();
     silencer.gain.value = 0;
     this.output.connect(silencer);
@@ -55,11 +58,20 @@ export class Sequencer extends BaseNode {
   }
 
   setProperty(key, value) {
-      if (key.startsWith('step')) {
-          const index = parseInt(key.replace('step', ''));
-          if (!isNaN(index) && index >= 0 && index < 8) {
-              this.stepValues[index] = value;
-          }
+    if (key.startsWith('step')) {
+      const index = parseInt(key.replace('step', ''));
+      if (!isNaN(index) && index >= 0 && index < 8) {
+        this.stepValues[index] = value;
       }
+    }
+  }
+
+  destroy() {
+    if (this.processor) {
+      this.processor.disconnect();
+      this.processor.onaudioprocess = null;
+    }
+    if (this.merger) this.merger.disconnect();
+    super.destroy();
   }
 }
