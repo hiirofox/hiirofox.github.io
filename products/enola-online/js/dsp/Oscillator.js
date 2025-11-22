@@ -1,89 +1,50 @@
+// enola-online/js/dsp/Oscillator.js
 import { BaseNode } from './BaseNode.js';
 
 export class Oscillator extends BaseNode {
   constructor(id, context) {
     super(id, context);
-    this.processor = null;
-    this.merger = null; // 新增 Merger
-    this.type = 'sawtooth';
-    this.pitch = 40;
-    this.pwm = 0.5;
-    this.sync = 1.0;
-    this.masterPhase = 0;
-    this.slavePhase = 0;
-    this.sampleRate = 44100;
-    this.DIV12 = 1.0 / 12.0;
+    this.worklet = null;
   }
 
   initialize(initialValues) {
-    this.sampleRate = this.context.sampleRate;
-    this.type = initialValues?.type || 'sawtooth';
-    this.pitch = initialValues?.pitch || 40;
-    this.pwm = initialValues?.pwm || 0.5;
-    this.sync = initialValues?.sync || 1.0;
+    const type = initialValues?.type || 'sawtooth';
+    const pitch = initialValues?.pitch || 40;
+    const pwm = initialValues?.pwm || 0.5;
+    const sync = initialValues?.sync || 1.0;
 
-    // 关键修改：创建一个拥有 2 个输入端口的 Merger
-    this.merger = this.context.createChannelMerger(2);
-
-    // Processor 依然接收 2 个声道（来自 Merger 的合并）
-    this.processor = this.context.createScriptProcessor(1024, 2, 1);
-
-    // 连接：Merger -> Processor
-    this.merger.connect(this.processor);
-
-    this.processor.onaudioprocess = (e) => {
-      // 这里的 ChannelData(0) 对应 Merger 的 Input 0 (FREQ)
-      // ChannelData(1) 对应 Merger 的 Input 1 (SHIFT)
-      const freqIn = e.inputBuffer.getChannelData(0);
-      const shiftIn = e.inputBuffer.getChannelData(1);
-      const out = e.outputBuffer.getChannelData(0);
-
-      for (let i = 0; i < out.length; i++) {
-        const inF = freqIn[i]; // 这里的 buffer 是自动归零的，如果没有连接则是 0
-        const inS = shiftIn[i];
-
-        const baseHz = inF * 500.0;
-        const exponent = (this.pitch + inS * 24.0) * this.DIV12;
-        const offsetHz = Math.pow(2, exponent);
-        const finalBaseFreq = Math.max(0, baseHz + offsetHz);
-
-        const slaveFreq = finalBaseFreq * this.sync;
-
-        const masterStep = finalBaseFreq / this.sampleRate;
-        const slaveStep = slaveFreq / this.sampleRate;
-
-        this.masterPhase += masterStep;
-        if (this.masterPhase >= 1.0) {
-          this.masterPhase -= 1.0;
-          this.slavePhase = 0;
+    // 創建 AudioWorkletNode
+    // 這裡不需要 Merger 了，Worklet 原生支持多輸入
+    // input 0: FREQ
+    // input 1: SHIFT
+    this.worklet = new AudioWorkletNode(this.context, 'oscillator-processor', {
+        numberOfInputs: 2,
+        numberOfOutputs: 1,
+        outputChannelCount: [1], // 單聲道輸出
+        parameterData: {
+            pitch: pitch,
+            pwm: pwm,
+            sync: sync
         }
+    });
 
-        this.slavePhase += slaveStep;
-        if (this.slavePhase >= 1.0) this.slavePhase -= 1.0;
+    // 初始化波形類型 (因為它不是 AudioParam，所以用消息傳遞)
+    this.worklet.port.postMessage({ 
+        type: 'config', 
+        payload: { type: type } 
+    });
 
-        let sample = 0;
-        switch (this.type) {
-          case 'sawtooth':
-            sample = 2.0 * (this.slavePhase - 0.5);
-            break;
-          case 'square':
-            sample = this.slavePhase < this.pwm ? 1.0 : -1.0;
-            break;
-          case 'sine':
-            sample = Math.sin(this.slavePhase * 2.0 * Math.PI);
-            break;
-          case 'triangle':
-            sample = 4.0 * Math.abs(this.slavePhase - 0.5) - 1.0;
-            break;
-        }
-        out[i] = sample;
-      }
-    };
+    // 設置 BaseNode 的接口
+    // AudioSystem 連接時，inputIndex 0 會連到 worklet 的 input 0，inputIndex 1 會連到 input 1
+    this.input = this.worklet;
+    this.output = this.worklet;
 
-    // 关键：对外暴露的 input 是 merger，这样 AudioSystem 连线时可以区分 Input 0 和 Input 1
-    this.input = this.merger;
-    this.output = this.processor;
+    // 綁定參數到 this.params，以便 AudioSystem.updateParam 可以控制它們
+    this.params.set('pitch', this.worklet.parameters.get('pitch'));
+    this.params.set('pwm', this.worklet.parameters.get('pwm'));
+    this.params.set('sync', this.worklet.parameters.get('sync'));
 
+    // 靜音保護
     const silencer = this.context.createGain();
     silencer.gain.value = 0;
     this.output.connect(silencer);
@@ -91,19 +52,25 @@ export class Oscillator extends BaseNode {
   }
 
   setProperty(key, value) {
-    if (key === 'type') this.type = value;
-    if (key === 'pitch') this.pitch = value;
-    if (key === 'pwm') this.pwm = value;
-    if (key === 'sync') this.sync = value;
+    if (key === 'type') {
+        this.worklet.port.postMessage({ 
+            type: 'config', 
+            payload: { type: value } 
+        });
+    } else {
+        // 對於 AudioParam 類型的屬性（pitch, pwm, sync），
+        // 雖然 AudioSystem 通常會優先檢查 params Map，但作為保險也保留直接設置
+        const param = this.worklet.parameters.get(key);
+        if (param) {
+            param.setValueAtTime(value, this.context.currentTime);
+        }
+    }
   }
 
   destroy() {
-    if (this.processor) {
-      this.processor.disconnect();
-      this.processor.onaudioprocess = null;
-    }
-    if (this.merger) {
-      this.merger.disconnect();
+    if (this.worklet) {
+      this.worklet.disconnect();
+      this.worklet.port.close(); // 關閉消息端口
     }
     super.destroy();
   }

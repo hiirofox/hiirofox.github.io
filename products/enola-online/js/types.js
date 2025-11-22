@@ -5,5 +5,6 @@ export const NodeType = {
     LFO: 'LFO',
     MASTER: 'MASTER',
     SEQUENCER: 'SEQUENCER',
-    CLOCK: 'CLOCK'
+    CLOCK: 'CLOCK',
+    ENVELOPE: 'ENVELOPE' // 新增
 };

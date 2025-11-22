@@ -1,4 +1,3 @@
-
 import { NodeRenderers } from './ui/NodeTemplates.js';
 
 const GRID_SIZE = 20; // 吸附网格大小
@@ -22,7 +21,6 @@ export class GraphSystem {
         this.view = { x: 0, y: 0, scale: 1.0 };
         
         // Interaction States
-        // accumulated & initialPositions added for absolute grid snapping
         this.dragState = { 
             active: false, 
             type: null, 
@@ -112,27 +110,21 @@ export class GraphSystem {
         document.addEventListener('mousemove', (e) => {
             // Node Drag (Absolute Grid Snapping)
             if (this.dragState.active && this.dragState.type === 'NODE') {
-                // 1. Accumulate raw mouse movement
                 this.dragState.accumulated.x += e.movementX / this.view.scale;
                 this.dragState.accumulated.y += e.movementY / this.view.scale;
 
-                // 2. Get initial position of the LEADER node (the one we are dragging)
                 const leaderInitial = this.dragState.initialPositions.get(this.dragState.targetId);
                 
                 if (leaderInitial) {
-                    // 3. Calculate where the leader SHOULD be (Raw)
                     const rawX = leaderInitial.x + this.dragState.accumulated.x;
                     const rawY = leaderInitial.y + this.dragState.accumulated.y;
 
-                    // 4. Snap absolute position to Grid (Top-Left alignment)
                     const snappedX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
                     const snappedY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
 
-                    // 5. Calculate the delta needed to get from Initial -> Snapped
                     const moveDx = snappedX - leaderInitial.x;
                     const moveDy = snappedY - leaderInitial.y;
 
-                    // 6. Apply this delta to ALL selected nodes (maintains relative positions)
                     this.dragState.initialPositions.forEach((initPos, id) => {
                         const node = this.nodes.get(id);
                         if(node) {
@@ -191,7 +183,6 @@ export class GraphSystem {
                 this.renderGroupSelectionBox(); 
             }
 
-            // Clear drag state
             this.dragState.active = false;
             this.dragState.targetId = null;
             this.dragState.initialPositions.clear();
@@ -364,6 +355,18 @@ export class GraphSystem {
     deselectAll() {
         this.nodes.forEach(node => node.element.classList.remove('selected'));
         this.groupBox.classList.add('hidden');
+    }
+
+    // [新增] 批量選中節點 (用於 Copy/Duplicate 後自動選中)
+    selectNodes(ids) {
+        this.deselectAll();
+        ids.forEach(id => {
+            const node = this.nodes.get(id);
+            if (node) {
+                node.element.classList.add('selected');
+            }
+        });
+        this.renderGroupSelectionBox();
     }
 
     getSelectedNodes() {

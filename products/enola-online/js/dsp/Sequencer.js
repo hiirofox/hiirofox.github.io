@@ -3,53 +3,28 @@ import { BaseNode } from './BaseNode.js';
 export class Sequencer extends BaseNode {
   constructor(id, context) {
     super(id, context);
-    this.processor = null;
-    this.merger = null;
-    this.currentStep = 0;
-    this.stepValues = [0, 0, 0, 0, 0, 0, 0, 0];
-    this.lastTrig = 0;
-    this.lastReset = 0;
+    this.worklet = null;
   }
 
   initialize(initialValues) {
-    // Input 0: Trig, Input 1: Reset
-    this.merger = this.context.createChannelMerger(2);
-    this.processor = this.context.createScriptProcessor(1024, 2, 1);
-    this.merger.connect(this.processor);
-
-    for (let i = 0; i < 8; i++) {
-      this.stepValues[i] = initialValues?.[`step${i}`] || 0;
+    const paramData = {};
+    for(let i=0; i<8; i++) {
+        paramData[`step${i}`] = initialValues?.[`step${i}`] || 0;
     }
 
-    this.processor.onaudioprocess = (e) => {
-      const trigIn = e.inputBuffer.getChannelData(0);
-      const resetIn = e.inputBuffer.getChannelData(1);
-      const cvOut = e.outputBuffer.getChannelData(0);
+    this.worklet = new AudioWorkletNode(this.context, 'sequencer-processor', {
+        numberOfInputs: 2, // 0: Trig, 1: Reset
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+        parameterData: paramData
+    });
 
-      for (let i = 0; i < trigIn.length; i++) {
-        const t = trigIn[i];
-        const r = resetIn[i];
+    this.input = this.worklet;
+    this.output = this.worklet;
 
-        if (r > 0.5 && this.lastReset <= 0.5) {
-          this.currentStep = 0;
-        }
-
-        if (t > 0.5 && this.lastTrig <= 0.5) {
-          this.currentStep++;
-          if (this.currentStep >= 8) {
-            this.currentStep = 0;
-          }
-        }
-
-        this.lastTrig = t;
-        this.lastReset = r;
-
-        cvOut[i] = this.stepValues[this.currentStep] / 1000.0;
-      }
-    };
-
-    this.input = this.merger;
-    this.output = this.processor;
+    for(let i=0; i<8; i++) {
+        this.params.set(`step${i}`, this.worklet.parameters.get(`step${i}`));
+    }
 
     const silencer = this.context.createGain();
     silencer.gain.value = 0;
@@ -58,20 +33,14 @@ export class Sequencer extends BaseNode {
   }
 
   setProperty(key, value) {
-    if (key.startsWith('step')) {
-      const index = parseInt(key.replace('step', ''));
-      if (!isNaN(index) && index >= 0 && index < 8) {
-        this.stepValues[index] = value;
-      }
+    const param = this.worklet.parameters.get(key);
+    if (param) {
+        param.setValueAtTime(value, this.context.currentTime);
     }
   }
 
   destroy() {
-    if (this.processor) {
-      this.processor.disconnect();
-      this.processor.onaudioprocess = null;
-    }
-    if (this.merger) this.merger.disconnect();
+    if(this.worklet) this.worklet.disconnect();
     super.destroy();
   }
 }

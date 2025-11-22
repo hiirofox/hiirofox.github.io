@@ -16,7 +16,15 @@ const graph = new GraphSystem('workspace', {
         audioSystem.disconnect(source, target, sourceHandle, targetHandle);
     },
     onNodeChange: (id, param, value) => {
+        // 1. 更新音頻引擎 (實時聽感)
         audioSystem.updateParam(id, param, value);
+
+        // 2. [關鍵修復] 更新圖表數據模型 (數據持久化)
+        // 這樣在 Copy/Duplicate 時，讀取到的就是當前值，而不是初始值
+        const node = graph.nodes.get(id);
+        if (node) {
+            node.data.values[param] = value;
+        }
     },
     onContext: (e) => {
         const menu = document.getElementById('context-menu');
@@ -62,7 +70,10 @@ document.querySelectorAll('.toolbar-btn').forEach(btn => {
     btn.onclick = () => {
         if (!audioStarted) return;
         const type = btn.dataset.type;
-        addNode(type);
+        const newId = addNode(type);
+        
+        // 新增節點後自動選中 (置頂)
+        graph.selectNodes([newId]);
     };
 });
 
@@ -72,7 +83,7 @@ function addNode(type, pos = null, values = null) {
     let initialValues = values;
     if (!initialValues) {
         initialValues = {};
-        if (type === NodeType.OSCILLATOR) initialValues = { frequency: 440, type: 'sawtooth' };
+        if (type === NodeType.OSCILLATOR) initialValues = { pitch: 40, type: 'sawtooth', pwm: 0.5, sync: 1.0 };
         if (type === NodeType.FILTER) initialValues = { frequency: 1000, q: 1, type: 'lowpass' };
         if (type === NodeType.GAIN) initialValues = { gain: 0.5 };
         if (type === NodeType.LFO) initialValues = { frequency: 2, gain: 100, type: 'sine' };
@@ -80,6 +91,7 @@ function addNode(type, pos = null, values = null) {
         if (type === NodeType.SEQUENCER) {
             for (let i = 0; i < 8; i++) initialValues[`step${i}`] = Math.floor(Math.random() * 500) + 200;
         }
+        if (type === NodeType.ENVELOPE) initialValues = { attack: 0.1, decay: 0.5, gain: 1.0 };
     }
 
     const position = pos || { x: 300 + Math.random() * 100, y: 300 + Math.random() * 100 };
@@ -113,12 +125,19 @@ document.getElementById('ctx-delete').onclick = () => {
 // COPY (Module Only)
 document.getElementById('ctx-copy').onclick = () => {
     const selected = graph.getSelectedNodes();
+    const newIds = [];
+
     selected.forEach(node => {
         const type = node.type;
+        // 這裡複製的 node.data.values 現在包含了最新的旋鈕值
         const values = JSON.parse(JSON.stringify(node.data.values));
         const pos = { x: node.x + 20, y: node.y + 20 };
-        addNode(type, pos, values);
+        const id = addNode(type, pos, values);
+        newIds.push(id);
     });
+
+    // 選中新創建的模塊
+    graph.selectNodes(newIds);
 };
 
 // DUPLICATE (Module + Wires)
@@ -139,24 +158,21 @@ document.getElementById('ctx-duplicate').onclick = () => {
 
     // 2. Replicate Edges
     graph.edges.forEach(edge => {
-        // CASE A: Internal connection (Source & Target both duplicated)
+        // CASE A: Internal connection
         if (idMap.has(edge.source) && idMap.has(edge.target)) {
             const newSource = idMap.get(edge.source);
             const newTarget = idMap.get(edge.target);
             connectSafe(newSource, edge.sourceHandle, newTarget, edge.targetHandle);
         }
         // CASE B: Incoming connection (Outside -> Duplicate)
-        // We "Mult" the signal: The duplicate receives the same input as the original
         else if (!idMap.has(edge.source) && idMap.has(edge.target)) {
             const newTarget = idMap.get(edge.target);
-            // Connect ORIGINAL source to NEW target
             connectSafe(edge.source, edge.sourceHandle, newTarget, edge.targetHandle);
         }
-        
-        // CASE C: Outgoing connection (Duplicate -> Outside)
-        // Do NOT duplicate. New node's output should not auto-connect to existing outside inputs,
-        // because that would overwrite the existing connection (One-Input Rule).
     });
+
+    // 選中新創建的模塊
+    graph.selectNodes(Array.from(idMap.values()));
 };
 
 function connectSafe(source, sourceHandle, target, targetHandle) {

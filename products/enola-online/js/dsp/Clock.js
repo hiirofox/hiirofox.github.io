@@ -1,69 +1,55 @@
-
 import { BaseNode } from './BaseNode.js';
 
 export class Clock extends BaseNode {
   constructor(id, context) {
     super(id, context);
-    this.processor = null;
-    this.samplesPerBeat = 0;
-    this.counter = 0;
-    this.divCounter = 0;
-    this.isHigh = false;
-    this.bpm = 120;
-    this.sampleRate = 44100;
+    this.worklet = null;
+    this.splitter = null; // 新增 Splitter
   }
 
   initialize(initialValues) {
-    this.sampleRate = this.context.sampleRate;
-    this.bpm = initialValues?.bpm || 120;
-    this.updateTimings();
+    const bpm = initialValues?.bpm || 120;
 
-    this.processor = this.context.createScriptProcessor(1024, 0, 2);
-
-    this.processor.onaudioprocess = (e) => {
-      const out0 = e.outputBuffer.getChannelData(0);
-      const out1 = e.outputBuffer.getChannelData(1);
-
-      const pulseWidthSamples = Math.floor(0.01 * this.sampleRate);
-
-      for (let i = 0; i < out0.length; i++) {
-        this.counter++;
-
-        if (this.counter >= this.samplesPerBeat) {
-          this.counter = 0;
-          this.isHigh = true;
-          this.divCounter++;
-          if (this.divCounter >= 8) {
-            this.divCounter = 0;
-          }
+    // Worklet 產生一個立體聲輸出 (Ch0: Trig, Ch1: Div)
+    this.worklet = new AudioWorkletNode(this.context, 'clock-processor', {
+        numberOfInputs: 0, 
+        numberOfOutputs: 1,
+        outputChannelCount: [2], 
+        parameterData: {
+            bpm: bpm
         }
+    });
 
-        if (this.counter > pulseWidthSamples) {
-          this.isHigh = false;
-        }
+    // [關鍵修復] 創建分離器，將 1 個立體聲輸出拆分為 2 個單聲道輸出
+    this.splitter = this.context.createChannelSplitter(2);
+    
+    // Worklet -> Splitter
+    this.worklet.connect(this.splitter);
 
-        const signal = this.isHigh ? 1.0 : 0.0;
-        out0[i] = signal;
-        out1[i] = (this.divCounter === 0 && this.isHigh) ? 1.0 : 0.0;
-      }
-    };
+    // 將 output 指向 Splitter
+    // 這樣 AudioSystem 調用 connect(target, 0) 時連接 Trig
+    // 調用 connect(target, 1) 時連接 Div
+    this.output = this.splitter;
 
-    this.output = this.processor;
+    this.params.set('bpm', this.worklet.parameters.get('bpm'));
 
+    // 保持活躍 (連接 Splitter 的任一輸出到 destination 即可保持上游活躍)
     const silencer = this.context.createGain();
     silencer.gain.value = 0;
-    this.output.connect(silencer);
+    this.splitter.connect(silencer, 0); // 連接 Output 0
     silencer.connect(this.context.destination);
-  }
-
-  updateTimings() {
-    this.samplesPerBeat = (60 / this.bpm) * this.sampleRate * 0.5 / 16;
   }
 
   setProperty(key, value) {
     if (key === 'bpm') {
-      this.bpm = value;
-      this.updateTimings();
+      const param = this.worklet.parameters.get('bpm');
+      if(param) param.setValueAtTime(value, this.context.currentTime);
     }
+  }
+  
+  destroy() {
+      if(this.worklet) this.worklet.disconnect();
+      if(this.splitter) this.splitter.disconnect();
+      super.destroy();
   }
 }
