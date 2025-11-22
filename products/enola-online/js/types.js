@@ -6,5 +6,6 @@ export const NodeType = {
     MASTER: 'MASTER',
     SEQUENCER: 'SEQUENCER',
     CLOCK: 'CLOCK',
-    ENVELOPE: 'ENVELOPE' // 新增
+    ENVELOPE: 'ENVELOPE',
+    MIXER: 'MIXER' // [新增]
 };

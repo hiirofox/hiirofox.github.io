@@ -7,12 +7,10 @@ const createContainer = (label, typeStr, width, onContext) => {
     const div = document.createElement('div');
     div.className = `node-container bg-black ${width} select-none group z-10`;
 
-    // Context Menu Handler
     div.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (!div.classList.contains('selected')) {
-            // Select exclusively if not already part of group
             const all = document.querySelectorAll('.node-container.selected');
             all.forEach(n => n.classList.remove('selected'));
             div.classList.add('selected');
@@ -20,7 +18,6 @@ const createContainer = (label, typeStr, width, onContext) => {
         onContext(e);
     });
 
-    // Header
     const header = document.createElement('div');
     header.className = "bg-[#002200] border-b border-[#00FF00] h-5 flex justify-between items-center px-2 cursor-move header-drag-handle";
     header.innerHTML = `
@@ -31,7 +28,8 @@ const createContainer = (label, typeStr, width, onContext) => {
     div.appendChild(header);
 
     const body = document.createElement('div');
-    body.className = "relative min-h-[60px] flex flex-col justify-center";
+    // [修改] 统一最小高度，确保视觉一致性
+    body.className = "relative min-h-[62px] flex flex-col justify-center";
     div.appendChild(body);
 
     return { root: div, body: body };
@@ -66,13 +64,20 @@ const createPort = (parent, label, handleId, type, side, topPercent) => {
 const STANDARD_KNOB_SIZE = 36;
 
 export const NodeRenderers = {
+    // --- [修改] Master ---
     [NodeType.MASTER]: (id, data, onChange, onContext) => {
         const { root, body } = createContainer('OUTPUT', 'MASTER', 'min-w-[120px]', onContext);
-        body.innerHTML = `<div class="flex justify-center items-center h-10 bg-[#050505] border-y border-[#111] my-1"><span class="text-[#00FF00] text-[9px] font-arial">STEREO OUT</span></div>`;
+        // 使用 py-2 和 h-[46px] 确保与 VCA 高度一致
+        const container = document.createElement('div');
+        container.className = "flex justify-center items-center py-2 px-4 w-full";
+        container.innerHTML = `<div class="flex justify-center items-center w-full h-[46px] bg-[#050505] border-y border-[#111]"><span class="text-[#00FF00] text-[9px] font-arial">STEREO OUT</span></div>`;
+
+        body.appendChild(container);
         createPort(body, 'IN', 'input', 'target', 'left', '50%');
         return root;
     },
 
+    // --- [修改] Oscillator ---
     [NodeType.OSCILLATOR]: (id, data, onChange, onContext) => {
         const { root, body } = createContainer('OSCILLATOR', 'VCO', 'min-w-[160px]', onContext);
 
@@ -83,7 +88,10 @@ export const NodeRenderers = {
         const controls = document.createElement('div');
         controls.className = "flex items-center pl-10 pr-10 py-2 gap-3";
 
-        new Switch(controls, {
+        // [微调] Switch 使用更紧凑的 gap 以防止高度溢出
+        const switchContainer = document.createElement('div');
+        switchContainer.className = "flex flex-col gap-[2px]"; // 紧凑模式
+        new Switch(switchContainer, {
             value: data.values.type || 'sawtooth',
             options: [
                 { label: 'SAW', value: 'sawtooth' },
@@ -93,6 +101,7 @@ export const NodeRenderers = {
             ],
             onChange: (v) => onChange(id, 'type', v)
         });
+        controls.appendChild(switchContainer);
 
         const knobs = document.createElement('div');
         knobs.className = "flex gap-2";
@@ -131,6 +140,7 @@ export const NodeRenderers = {
         return root;
     },
 
+    // VCA (标准高度参考)
     [NodeType.GAIN]: (id, data, onChange, onContext) => {
         const { root, body } = createContainer('AMPLIFIER', 'VCA', 'min-w-[120px]', onContext);
         createPort(body, 'IN', 'input', 'target', 'left', '25%');
@@ -143,7 +153,8 @@ export const NodeRenderers = {
         body.appendChild(controls);
         return root;
     },
-    // --- [修改點] LFO ---
+
+    // --- [修改] LFO ---
     [NodeType.LFO]: (id, data, onChange, onContext) => {
         const { root, body } = createContainer('LFO', 'MOD', 'min-w-[320px]', onContext);
         createPort(body, 'RATE', 'input-rate', 'target', 'left', '25%');
@@ -151,26 +162,25 @@ export const NodeRenderers = {
         createPort(body, 'CV', 'output', 'source', 'right', '50%');
 
         const content = document.createElement('div');
-        content.className = "flex flex-row items-center w-full p-2 gap-4 pl-9 pr-8 justify-between";
+        content.className = "flex flex-row items-center w-full p-2 gap-4 pl-8 pr-8 justify-between";
 
-        // 1. 左側：Canvas
-        // [修改點] 高度從 60px 改為 44px，與 Envelope/VCO 高度匹配
+        // 1. 左侧：Canvas
+        // [修改点] 高度统一为 46px (46 + 16 = 62px)
         const canvasContainer = document.createElement('div');
-        canvasContainer.className = "h-[44px] flex-grow bg-black border border-[#005500] relative";
+        canvasContainer.className = "h-[46px] flex-grow bg-black border border-[#005500] relative";
         const canvas = document.createElement('canvas');
-        canvas.width = 96;
-        // [修改點] Canvas 內部高度也需對應設為 44
-        canvas.height = 44;
+        canvas.width = 120;
+        canvas.height = 46;
         canvas.className = "w-full h-full";
         canvasContainer.appendChild(canvas);
 
-        // 2. 右側：控件容器
+        // 2. 右侧：控件
         const controls = document.createElement('div');
         controls.className = "flex flex-row gap-4 items-center";
 
         new Switch(controls, {
             value: data.values.type || 'sine',
-            options: [{ label: 'SIN', value: 'sine' }, { label: 'SQR', value: 'square' }, { label: 'SAW', value: 'sawtooth' }, { label: 'TRI', value: 'triangle' }],
+            options: [{ label: 'SIN', value: 'sine' }, { label: 'SQR', value: 'square' }, { label: 'SAW', value: 'sawtooth' }],
             onChange: (v) => onChange(id, 'type', v)
         });
 
@@ -216,9 +226,10 @@ export const NodeRenderers = {
         body.appendChild(controls);
         return root;
     },
-    // --- A/D Envelope ---
+
+    // --- [修改] A/D Envelope ---
     [NodeType.ENVELOPE]: (id, data, onChange, onContext) => {
-        const { root, body } = createContainer('A/D ENVELOPE', 'ENV', 'min-w-[280px]', onContext); // 再次稍微加宽
+        const { root, body } = createContainer('A/D ENVELOPE', 'ENV', 'min-w-[280px]', onContext);
 
         createPort(body, 'TRIG', 'input', 'target', 'left', '30%');
         createPort(body, 'CV', 'output', 'source', 'right', '50%');
@@ -226,20 +237,15 @@ export const NodeRenderers = {
         const content = document.createElement('div');
         content.className = "flex flex-row items-center w-full p-2 gap-4 pl-9 pr-8 justify-between";
 
-        // 1. 左侧：Canvas
-        // [修改点] 高度设为 44px，这与 Knob (36px) + Label (9px) 的总视觉高度非常接近
-        // 同时保留了边框，这样整体 Node 高度会与 VCO 一致
+        // [修改点] 高度统一为 46px
         const canvasContainer = document.createElement('div');
-        canvasContainer.className = "h-[44px] flex-grow bg-black border border-[#005500] relative";
-
+        canvasContainer.className = "h-[46px] flex-grow bg-black border border-[#005500] relative";
         const canvas = document.createElement('canvas');
-        canvas.width = 96;
-        canvas.height = 44;
+        canvas.width = 140;
+        canvas.height = 46;
         canvas.className = "w-full h-full";
-
         canvasContainer.appendChild(canvas);
 
-        // 2. 右侧：旋鈕
         const knobs = document.createElement('div');
         knobs.className = "flex flex-row gap-2";
 
@@ -259,7 +265,6 @@ export const NodeRenderers = {
             onChange: (v) => onChange(id, 'decay', v)
         });
 
-        // [新增] Gain 旋鈕
         new Knob(knobs, {
             size: 36,
             label: 'GAIN',
@@ -270,6 +275,37 @@ export const NodeRenderers = {
 
         content.appendChild(canvasContainer);
         content.appendChild(knobs);
+
+        body.appendChild(content);
+        return root;
+    },
+    [NodeType.MIXER]: (id, data, onChange, onContext) => {
+        // 宽度 240px 足够容纳 4 个横向旋钮
+        const { root, body } = createContainer('MIXER', 'MIX', 'min-w-[240px]', onContext);
+
+        // 4 个输入端口，垂直分布在左侧 (20%, 40%, 60%, 80%)
+        createPort(body, '1', 'input-0', 'target', 'left', '20%');
+        createPort(body, '2', 'input-1', 'target', 'left', '40%');
+        createPort(body, '3', 'input-2', 'target', 'left', '60%');
+        createPort(body, '4', 'input-3', 'target', 'left', '80%');
+
+        // 1 个输出端口
+        createPort(body, 'OUT', 'output', 'source', 'right', '50%');
+
+        // 旋钮容器：水平排列 (flex-row)
+        const content = document.createElement('div');
+        // pl-8 为左侧密集的端口标签留空间
+        content.className = "flex flex-row items-center justify-center w-full p-2 gap-2 pl-2 pr-4";
+
+        for (let i = 0; i < 4; i++) {
+            new Knob(content, {
+                size: 36,
+                label: `CH${i + 1}`,
+                value: data.values[`gain${i}`] !== undefined ? data.values[`gain${i}`] : 1.0,
+                min: 0, max: 2,
+                onChange: (v) => onChange(id, `gain${i}`, v)
+            });
+        }
 
         body.appendChild(content);
         return root;
