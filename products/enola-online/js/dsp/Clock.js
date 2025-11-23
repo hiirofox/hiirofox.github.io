@@ -1,42 +1,53 @@
 import { BaseNode } from './BaseNode.js';
+import { Knob } from '../ui/Knob.js';
+import { createNodeShell, createPort, createControlRow, STANDARD_KNOB_SIZE } from '../ui/UIBuilder.js';
+import { NodeType } from '../types.js';
 
 export class Clock extends BaseNode {
+  static meta = {
+    type: NodeType.CLOCK,
+    label: 'CLOCK',
+    shortLabel: 'CLK',
+    workletPath: 'js/dsp/processors/ClockProcessor.js',
+    initialValues: { bpm: 120 }
+  };
+
+  static renderUI(id, data, onChange, onContext) {
+    const { root, body } = createNodeShell(id, this.meta.label, this.meta.shortLabel, 'min-w-[120px]', onContext);
+    
+    createPort(body, 'TRIG', 'output-trig', 'source', 'right', '30%');
+    createPort(body, '/ 8', 'output-div', 'source', 'right', '70%');
+
+    const controls = createControlRow(body);
+    new Knob(controls, { size: STANDARD_KNOB_SIZE, label: 'BPM', value: data.values.bpm || 120, min: 40, max: 240, onChange: (v) => onChange(id, 'bpm', v) });
+    
+    return root;
+  }
+
   constructor(id, context) {
     super(id, context);
     this.worklet = null;
-    this.splitter = null; // 新增 Splitter
+    this.splitter = null; 
   }
 
   initialize(initialValues) {
-    const bpm = initialValues?.bpm || 120;
+    const bpm = initialValues?.bpm || Clock.meta.initialValues.bpm;
 
-    // Worklet 產生一個立體聲輸出 (Ch0: Trig, Ch1: Div)
     this.worklet = new AudioWorkletNode(this.context, 'clock-processor', {
         numberOfInputs: 0, 
         numberOfOutputs: 1,
         outputChannelCount: [2], 
-        parameterData: {
-            bpm: bpm
-        }
+        parameterData: { bpm }
     });
 
-    // [關鍵修復] 創建分離器，將 1 個立體聲輸出拆分為 2 個單聲道輸出
     this.splitter = this.context.createChannelSplitter(2);
-    
-    // Worklet -> Splitter
     this.worklet.connect(this.splitter);
-
-    // 將 output 指向 Splitter
-    // 這樣 AudioSystem 調用 connect(target, 0) 時連接 Trig
-    // 調用 connect(target, 1) 時連接 Div
     this.output = this.splitter;
-
     this.params.set('bpm', this.worklet.parameters.get('bpm'));
 
-    // 保持活躍 (連接 Splitter 的任一輸出到 destination 即可保持上游活躍)
     const silencer = this.context.createGain();
     silencer.gain.value = 0;
-    this.splitter.connect(silencer, 0); // 連接 Output 0
+    this.splitter.connect(silencer, 0); 
     silencer.connect(this.context.destination);
   }
 

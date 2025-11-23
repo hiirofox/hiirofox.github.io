@@ -1,20 +1,12 @@
-// enola-online/js/services/AudioSystem.js
+// js/services/AudioSystem.js
 import { NodeType } from '../types.js';
-import { Oscillator } from '../dsp/Oscillator.js';
-import { Filter } from '../dsp/Filter.js';
-import { Gain } from '../dsp/Gain.js';
-import { LFO } from '../dsp/LFO.js';
-import { Master } from '../dsp/Master.js';
-import { Clock } from '../dsp/Clock.js';
-import { Sequencer } from '../dsp/Sequencer.js';
-import { Envelope } from '../dsp/Envelope.js';
-import { Mixer } from '../dsp/Mixer.js'; // [新增引用]
+import { ModuleRegistry } from '../ModuleRegistry.js';
 
 class AudioSystem {
   constructor() {
     this.context = null;
     this.nodes = new Map();
-    this.modulesLoaded = false; // 防止重複加載
+    this.modulesLoaded = false;
   }
 
   getContext() {
@@ -32,18 +24,11 @@ class AudioSystem {
 
     if (!this.modulesLoaded) {
       try {
-        // 批量加载所有 Processor
-        await Promise.all([
-          ctx.audioWorklet.addModule('js/dsp/processors/OscillatorProcessor.js'),
-          ctx.audioWorklet.addModule('js/dsp/processors/GainProcessor.js'),
-          ctx.audioWorklet.addModule('js/dsp/processors/LFOProcessor.js'),
-          ctx.audioWorklet.addModule('js/dsp/processors/ClockProcessor.js'),
-          ctx.audioWorklet.addModule('js/dsp/processors/SequencerProcessor.js'),
-          ctx.audioWorklet.addModule('js/dsp/processors/EnvelopeProcessor.js'),
-          ctx.audioWorklet.addModule('js/dsp/processors/MixerProcessor.js'), // [新增加载]
-        ]);
+        // [修改] 动态加载所有注册模块的 Worklets
+        const worklets = ModuleRegistry.getAllWorklets();
+        await Promise.all(worklets.map(path => ctx.audioWorklet.addModule(path)));
 
-        console.log("All Audio Worklet Modules Loaded");
+        console.log("All Registered Audio Worklet Modules Loaded");
         this.modulesLoaded = true;
       } catch (e) {
         console.error("Failed to load audio worklets", e);
@@ -53,30 +38,16 @@ class AudioSystem {
 
   createNode(id, type, initialValues) {
     const ctx = this.getContext();
-    let node = null;
+    
+    // [修改] 从 Registry 获取类
+    const NodeClass = ModuleRegistry.getClass(type);
 
-    // 確保模塊已加載（針對 Oscillator）
-    // 如果是首次點擊初始化，resume() 會被調用並等待加載完成
-    // 但如果是後續動態添加節點，邏輯也是安全的
-
-    switch (type) {
-      case NodeType.OSCILLATOR: node = new Oscillator(id, ctx); break;
-      case NodeType.FILTER: node = new Filter(id, ctx); break;
-      case NodeType.GAIN: node = new Gain(id, ctx); break;
-      case NodeType.LFO: node = new LFO(id, ctx); break;
-      case NodeType.MASTER: node = new Master(id, ctx); break;
-      case NodeType.CLOCK: node = new Clock(id, ctx); break;
-      case NodeType.SEQUENCER: node = new Sequencer(id, ctx); break;
-      case NodeType.ENVELOPE: node = new Envelope(id, ctx); break;
-      case NodeType.MIXER: node = new Mixer(id, ctx); break; // [新增 Case]
-      default:
+    if (NodeClass) {
+        const node = new NodeClass(id, ctx);
+        node.initialize(initialValues);
+        this.nodes.set(id, node);
+    } else {
         console.warn(`Unknown node type: ${type}`);
-        return;
-    }
-
-    if (node) {
-      node.initialize(initialValues);
-      this.nodes.set(id, node);
     }
   }
 
@@ -93,13 +64,14 @@ class AudioSystem {
     if (!node) return;
 
     const audioParam = node.params.get(param);
-    // 檢查是否為 AudioParam 實例
     if (audioParam && typeof audioParam.setTargetAtTime === 'function' && typeof value === 'number') {
       audioParam.setTargetAtTime(value, this.getContext().currentTime, 0.05);
     } else {
       node.setProperty(param, value);
     }
   }
+
+  // Connect/Disconnect 逻辑保持不变，因为它们基于通用 Handle 字符串
   connect(sourceId, targetId, sourceHandle, targetHandle) {
     const sourceNode = this.nodes.get(sourceId);
     const targetNode = this.nodes.get(targetId);
@@ -113,13 +85,11 @@ class AudioSystem {
     let isParam = false;
     let paramName = '';
 
-    // [修改连接逻辑] 解析 input-X
     if (targetHandle === 'input' || targetHandle === 'input-trig' || targetHandle === 'input-freq' || targetHandle === 'input-rate') {
       inputIndex = 0;
     } else if (targetHandle === 'input-reset' || targetHandle === 'input-shift' || targetHandle === 'input-cv') {
       inputIndex = 1;
     } else if (targetHandle.startsWith('input-')) {
-      // 处理 input-0, input-1, input-2, input-3
       const part = targetHandle.replace('input-', '');
       const idx = parseInt(part);
       if (!isNaN(idx)) inputIndex = idx;
@@ -139,7 +109,6 @@ class AudioSystem {
   }
 
   disconnect(sourceId, targetId, sourceHandle, targetHandle) {
-    // ... 逻辑与 connect 类似 ...
     const sourceNode = this.nodes.get(sourceId);
     const targetNode = this.nodes.get(targetId);
     if (!sourceNode || !targetNode) return;
@@ -153,7 +122,6 @@ class AudioSystem {
 
     if (targetHandle === 'input-reset' || targetHandle === 'input-shift' || targetHandle === 'input-cv') inputIndex = 1;
 
-    // [新增] Disconnect 也要处理 input-X
     if (targetHandle.startsWith('input-')) {
       const part = targetHandle.replace('input-', '');
       const idx = parseInt(part);

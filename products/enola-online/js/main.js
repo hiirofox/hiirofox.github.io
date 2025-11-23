@@ -2,8 +2,8 @@ import { NodeType } from './types.js';
 import { audioSystem } from './services/AudioSystem.js';
 import { GraphSystem } from './GraphSystem.js';
 import { Persistence } from './services/Persistence.js';
+import { ModuleRegistry } from './ModuleRegistry.js';
 
-// State
 let audioStarted = false;
 let nodeIdCounter = 1;
 
@@ -13,16 +13,14 @@ const graph = new GraphSystem('workspace', {
         audioSystem.connect(params.source, params.target, params.sourceHandle, params.targetHandle);
         graph.addEdge(params);
     },
-    onDisconnect: (source, target, sourceHandle, targetHandle) => {
-        audioSystem.disconnect(source, target, sourceHandle, targetHandle);
+    onDisconnect: (s, t, sh, th) => {
+        audioSystem.disconnect(s, t, sh, th);
+        graph.removeEdge(s, t, sh, th);
     },
     onNodeChange: (id, param, value) => {
         audioSystem.updateParam(id, param, value);
-        // 同步數據到 Graph Model
         const node = graph.nodes.get(id);
-        if (node) {
-            node.data.values[param] = value;
-        }
+        if (node) node.data.values[param] = value;
     },
     onContext: (e) => {
         const menu = document.getElementById('context-menu');
@@ -49,7 +47,6 @@ const shortUrlBox = document.getElementById('short-url-box');
 
 // Start Audio & Load Project
 initBtn.onclick = async () => {
-    console.log("Initializing...");
     standby.classList.add('hidden');
     initBtn.classList.add('hidden');
     nodeButtons.classList.remove('hidden');
@@ -64,39 +61,33 @@ initBtn.onclick = async () => {
         const stateStr = params.get('data');
 
         if (stateStr) {
-            // [修改] loadProject 现在是异步的
             await loadProject(stateStr);
         } else {
+            // Default project
             const masterId = 'master-1';
+            const masterVals = ModuleRegistry.getInitialValues(NodeType.MASTER);
             const masterNode = {
                 id: masterId,
                 type: NodeType.MASTER,
                 position: { x: 800, y: 300 },
-                data: { values: {} }
+                data: { values: masterVals }
             };
+            audioSystem.createNode(masterId, NodeType.MASTER, masterVals);
             graph.addNode(masterNode);
-            audioSystem.createNode(masterId, NodeType.MASTER);
         }
-
     } catch (e) {
         console.error("Audio start failed", e);
     }
 };
 
-// [修改] 增加 async
 async function loadProject(stateStr) {
-    // [修改] 增加 await
     const state = await Persistence.deserialize(stateStr);
-    
     if (!state) {
         console.error("Failed to parse project data");
-        // 如果解压失败（可能是旧版链接），可以尝试回退逻辑，或者直接报错
         return;
     }
 
-    console.log("Restoring project...", state);
-
-    // 1. 恢復節點
+    // 1. 恢复节点
     let maxId = 0;
     state.n.forEach(n => {
         audioSystem.createNode(n.id, n.type, n.v);
@@ -116,7 +107,7 @@ async function loadProject(stateStr) {
 
     nodeIdCounter = maxId + 1;
 
-    // 2. 恢復連線
+    // 2. 恢复连线
     state.e.forEach(e => {
         audioSystem.connect(e.s, e.t, e.sh, e.th);
         graph.addEdge({
@@ -126,14 +117,20 @@ async function loadProject(stateStr) {
             targetHandle: e.th
         });
     });
+
+    // [修复] 强制延时重绘
+    // 解决 DOM 元素刚创建未完成布局导致 getBoundingClientRect 计算错误的问题
+    setTimeout(() => {
+        graph.updateEdges();
+        console.log("Project loaded: Edges realigned.");
+    }, 50);
 }
 
-// [修改] Export 按鈕邏輯 (增加 async/await)
+// Export logic
 exportBtn.onclick = async () => {
     exportBtn.disabled = true;
     exportBtn.innerText = "Processing...";
 
-    // [修改] 增加 await
     const stateStr = await Persistence.serialize(graph.nodes, graph.edges);
     
     exportBtn.disabled = false;
@@ -150,18 +147,15 @@ exportBtn.onclick = async () => {
     exportModal.classList.remove('hidden');
 };
 
-// 關閉 Modal
 closeExport.onclick = () => {
     exportModal.classList.add('hidden');
 };
 
-// 轉短鏈
 convertBtn.onclick = async () => {
     const longUrl = longUrlBox.value;
     convertStatus.innerText = "Converting...";
     convertBtn.disabled = true;
 
-    // 這裡長鏈接已經是壓縮過的，成功率會更高
     const short = await Persistence.shortenURL(longUrl);
     
     convertBtn.disabled = false;
@@ -170,11 +164,11 @@ convertBtn.onclick = async () => {
         shortUrlBox.value = short;
         shortUrlContainer.classList.remove('hidden');
     } else {
-        convertStatus.innerText = "Failed (Check Console)";
+        convertStatus.innerText = "Failed";
     }
 };
 
-// Toolbar Actions (Add Node)
+// Toolbar Actions
 document.querySelectorAll('.toolbar-btn').forEach(btn => {
     btn.onclick = () => {
         if (!audioStarted) return;
@@ -187,19 +181,15 @@ document.querySelectorAll('.toolbar-btn').forEach(btn => {
 function addNode(type, pos = null, values = null) {
     const id = `${type.toLowerCase()}-${nodeIdCounter++}`;
     
+    // 使用 Registry 获取默认值
     let initialValues = values;
     if (!initialValues) {
-        initialValues = {};
-        if (type === NodeType.OSCILLATOR) initialValues = { pitch: 40, type: 'sawtooth', pwm: 0.5, sync: 1.0 };
-        if (type === NodeType.FILTER) initialValues = { frequency: 1000, q: 1, type: 'lowpass' };
-        if (type === NodeType.GAIN) initialValues = { gain: 0.5 };
-        if (type === NodeType.LFO) initialValues = { frequency: 2, gain: 100, type: 'sine' };
-        if (type === NodeType.CLOCK) initialValues = { bpm: 120 };
+        initialValues = JSON.parse(JSON.stringify(ModuleRegistry.getInitialValues(type)));
+        
+        // Sequencer 随机化处理
         if (type === NodeType.SEQUENCER) {
             for (let i = 0; i < 8; i++) initialValues[`step${i}`] = Math.floor(Math.random() * 500) + 200;
         }
-        if (type === NodeType.ENVELOPE) initialValues = { attack: 0.1, decay: 0.5, gain: 1.0 };
-        if (type === NodeType.MIXER) initialValues = { gain0: 1, gain1: 1, gain2: 1, gain3: 1 };
     }
 
     const position = pos || { x: 300 + Math.random() * 100, y: 300 + Math.random() * 100 };
@@ -216,7 +206,7 @@ function addNode(type, pos = null, values = null) {
     return id;
 }
 
-// Context Menu Logic
+// Context Menu
 document.addEventListener('click', () => {
     document.getElementById('context-menu').classList.add('hidden');
 });
@@ -253,15 +243,16 @@ document.getElementById('ctx-duplicate').onclick = () => {
         const newId = addNode(type, pos, values);
         idMap.set(node.id, newId);
     });
+    
     graph.edges.forEach(edge => {
-        if (idMap.has(edge.source) && idMap.has(edge.target)) {
-            const newSource = idMap.get(edge.source);
-            const newTarget = idMap.get(edge.target);
-            connectSafe(newSource, edge.sourceHandle, newTarget, edge.targetHandle);
+        const sMapped = idMap.has(edge.source);
+        const tMapped = idMap.has(edge.target);
+
+        if (sMapped && tMapped) {
+            connectSafe(idMap.get(edge.source), edge.sourceHandle, idMap.get(edge.target), edge.targetHandle);
         }
-        else if (!idMap.has(edge.source) && idMap.has(edge.target)) {
-            const newTarget = idMap.get(edge.target);
-            connectSafe(edge.source, edge.sourceHandle, newTarget, edge.targetHandle);
+        else if (!sMapped && tMapped) {
+            connectSafe(edge.source, edge.sourceHandle, idMap.get(edge.target), edge.targetHandle);
         }
     });
     graph.selectNodes(Array.from(idMap.values()));

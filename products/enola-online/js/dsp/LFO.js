@@ -1,75 +1,108 @@
 import { BaseNode } from './BaseNode.js';
+import { Knob } from '../ui/Knob.js';
+import { Switch } from '../ui/Switch.js';
+import { createNodeShell, createPort, STANDARD_KNOB_SIZE } from '../ui/UIBuilder.js';
+import { NodeType } from '../types.js';
 
 export class LFO extends BaseNode {
+  static meta = {
+    type: NodeType.LFO,
+    label: 'LFO',
+    shortLabel: 'MOD',
+    workletPath: 'js/dsp/processors/LFOProcessor.js',
+    initialValues: { frequency: 5, gain: 100, type: 'sine' }
+  };
+
+  static renderUI(id, data, onChange, onContext) {
+    const { root, body } = createNodeShell(id, this.meta.label, this.meta.shortLabel, 'min-w-[320px]', onContext);
+
+    createPort(body, 'RATE', 'input-rate', 'target', 'left', '25%');
+    createPort(body, 'RST', 'input-reset', 'target', 'left', '75%');
+    createPort(body, 'CV', 'output', 'source', 'right', '50%');
+
+    const content = document.createElement('div');
+    content.className = "flex flex-row items-center w-full p-2 gap-4 pl-8 pr-8 justify-between";
+
+    const canvasContainer = document.createElement('div');
+    canvasContainer.className = "h-[46px] flex-grow bg-black border border-[#005500] relative";
+    const canvas = document.createElement('canvas');
+    canvas.width = 120;
+    canvas.height = 46;
+    canvas.className = "w-full h-full";
+    canvasContainer.appendChild(canvas);
+
+    const controls = document.createElement('div');
+    controls.className = "flex flex-row gap-4 items-center";
+
+    new Switch(controls, {
+        value: data.values.type || 'sine',
+        options: [{ label: 'SIN', value: 'sine' }, { label: 'SQR', value: 'square' }, { label: 'SAW', value: 'sawtooth' }],
+        onChange: (v) => onChange(id, 'type', v)
+    });
+
+    new Knob(controls, { size: STANDARD_KNOB_SIZE, label: 'RATE', value: data.values.frequency || 5, min: 0.1, max: 50, onChange: (v) => onChange(id, 'frequency', v) });
+    new Knob(controls, { size: STANDARD_KNOB_SIZE, label: 'DPTH', value: data.values.gain || 100, min: 0, max: 1000, onChange: (v) => onChange(id, 'gain', v) });
+
+    content.appendChild(canvasContainer);
+    content.appendChild(controls);
+    body.appendChild(content);
+
+    return root;
+  }
+
   constructor(id, context) {
     super(id, context);
     this.worklet = null;
     this.splitter = null;
     this.analyser = null;
     this.animationFrameId = null;
-
-    // 緩存當前波形類型用於繪圖
     this.currentType = 'sine';
   }
 
   initialize(initialValues) {
-    this.currentType = initialValues?.type || 'sine';
-    const freq = initialValues?.frequency || 5;
-    const gain = initialValues?.gain || 100;
+    const defaults = LFO.meta.initialValues;
+    this.currentType = initialValues?.type || defaults.type;
+    const freq = initialValues?.frequency || defaults.frequency;
+    const gain = initialValues?.gain || defaults.gain;
 
-    // 1. 創建 Worklet
     this.worklet = new AudioWorkletNode(this.context, 'lfo-processor', {
-      numberOfInputs: 2, // 0: Rate, 1: Reset
+      numberOfInputs: 2,
       numberOfOutputs: 1,
-      outputChannelCount: [2], // Ch0: Signal, Ch1: Phase
-      parameterData: {
-        frequency: freq,
-        gain: gain
-      }
+      outputChannelCount: [2],
+      parameterData: { frequency: freq, gain: gain }
     });
 
-    // 發送初始配置
     this.worklet.port.postMessage({ type: 'config', payload: { type: this.currentType } });
 
-    // 2. 信號分離 (Splitter)
     this.splitter = this.context.createChannelSplitter(2);
     this.worklet.connect(this.splitter);
 
-    // 3. 音頻輸出路徑 (Ch0 -> Output)
     this.output = this.context.createGain();
     this.splitter.connect(this.output, 0, 0);
 
-    // 4. UI 可視化路徑 (Ch1 -> Analyser)
     this.analyser = this.context.createAnalyser();
-    this.analyser.fftSize = 128; // 小緩衝，快速響應
+    this.analyser.fftSize = 128;
     this.splitter.connect(this.analyser, 1, 0);
 
-    // 5. 輸入設置
     this.input = this.worklet;
-
-    // 6. 參數綁定
     this.params.set('frequency', this.worklet.parameters.get('frequency'));
     this.params.set('gain', this.worklet.parameters.get('gain'));
 
-    // 7. 靜音保護 (保持 DSP 活躍)
     const silencer = this.context.createGain();
     silencer.gain.value = 0;
     this.output.connect(silencer);
     silencer.connect(this.context.destination);
 
-    // 啟動繪圖循環
     this.startVisualizer();
   }
 
   startVisualizer() {
     const update = () => {
       const container = document.getElementById(this.id);
-      if (!container) return; // 節點被刪除則停止
+      if (!container) return; 
 
       const canvas = container.querySelector('canvas');
-      if (canvas) {
-        this.draw(canvas);
-      }
+      if (canvas) this.draw(canvas);
 
       this.animationFrameId = requestAnimationFrame(update);
     };
@@ -82,72 +115,45 @@ export class LFO extends BaseNode {
     const h = canvas.height;
     const halfH = h / 2;
 
-    // 1. 獲取相位 (0.0 ~ 1.0)
     const buffer = new Float32Array(1);
     this.analyser.getFloatTimeDomainData(buffer);
     let phase = buffer[0];
-
-    // 修正相位 (防止微小負值)
     if (phase < 0) phase += 1.0;
     phase = phase % 1.0;
 
-    // 2. 清空畫布
     ctx.clearRect(0, 0, w, h);
-
-    // 3. 繪製靜態波形 (Static Waveform)
-    // 這會畫出當前選中波形的一個完整週期
     ctx.beginPath();
-    ctx.strokeStyle = '#00FFFF'; // [修改點] 青色波形 0x00ffff
+    ctx.strokeStyle = '#00FFFF'; 
     ctx.lineWidth = 2;
 
-    // 遍歷畫布寬度繪製波形
     for (let x = 0; x <= w; x++) {
-      const t = x / w; // 歸一化時間 0.0 -> 1.0
+      const t = x / w;
       let y = 0;
-
       switch (this.currentType) {
-        case 'sine':
-          // sin(2PI * t) -> -1~1
-          y = halfH - Math.sin(t * Math.PI * 2) * (halfH - 4);
-          break;
-        case 'square':
-          // 稍微留邊
-          y = (t < 0.5) ? 4 : h - 4;
-          break;
-        case 'sawtooth':
-          // Sawtooth: 2*(t - 0.5)
-          // 注意 Canvas Y 軸向下，所以負號反轉
-          y = halfH + (2 * (t - 0.5)) * (-halfH + 4);
-          break;
-        case 'triangle':
-          // Triangle: 4 * abs(t - 0.5) - 1
-          y = halfH + (4 * (0.5 - Math.abs(t - 0.5)) - 1) * (-halfH + 4);
-          break;
-        default:
-          y = halfH;
+        case 'sine': y = halfH - Math.sin(t * Math.PI * 2) * (halfH - 4); break;
+        case 'square': y = (t < 0.5) ? 4 : h - 4; break;
+        case 'sawtooth': y = halfH + (2 * (t - 0.5)) * (-halfH + 4); break;
+        case 'triangle': y = halfH + (4 * (0.5 - Math.abs(t - 0.5)) - 1) * (-halfH + 4); break;
+        default: y = halfH;
       }
-
-      if (x === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.stroke();
 
-    // 4. 繪製相位指示條 (Phase Indicator Bar)
     const cursorX = phase * w;
-
     ctx.beginPath();
-    ctx.strokeStyle = '#FFFFFF'; // 白色指示條，對比度高
+    ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]); // 虛線樣式
+    ctx.setLineDash([2, 2]);
     ctx.moveTo(cursorX, 0);
     ctx.lineTo(cursorX, h);
     ctx.stroke();
-    ctx.setLineDash([]); // 重置虛線
+    ctx.setLineDash([]);
   }
 
   setProperty(key, value) {
     if (key === 'type') {
-      this.currentType = value; // 更新本地變量以重繪波形
+      this.currentType = value;
       this.worklet.port.postMessage({ type: 'config', payload: { type: value } });
     } else {
       const param = this.worklet.parameters.get(key);

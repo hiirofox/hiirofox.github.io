@@ -1,4 +1,3 @@
-
 export class Knob {
     constructor(container, options) {
         this.value = options.value;
@@ -14,7 +13,7 @@ export class Knob {
 
     createDOM() {
         const div = document.createElement('div');
-        div.className = "nodrag cursor-ns-resize inline-flex flex-col items-center justify-start select-none";
+        div.className = "nodrag cursor-ns-resize inline-flex flex-col items-center justify-start select-none touch-none"; // Added touch-none
         div.style.width = `${this.size}px`;
         
         const svgNS = "http://www.w3.org/2000/svg";
@@ -53,8 +52,11 @@ export class Knob {
         div.appendChild(this.svg);
         div.appendChild(labelSpan);
 
-        // Events
+        // Mouse Events
         div.addEventListener('mousedown', (e) => this.onMouseDown(e));
+
+        // [新增] Touch Events
+        div.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
 
         return div;
     }
@@ -62,24 +64,53 @@ export class Knob {
     onMouseDown(e) {
         e.preventDefault();
         e.stopPropagation();
-        this.isDragging = true;
-        this.startY = e.clientY;
-        this.startValue = this.value;
+        this.startDrag(e.clientY);
 
         const moveHandler = (ev) => this.onMouseMove(ev);
         const upHandler = () => {
-            this.isDragging = false;
             window.removeEventListener('mousemove', moveHandler);
             window.removeEventListener('mouseup', upHandler);
         };
-
         window.addEventListener('mousemove', moveHandler);
         window.addEventListener('mouseup', upHandler);
     }
 
     onMouseMove(e) {
-        if (!this.isDragging) return;
-        const deltaY = this.startY - e.clientY;
+        this.handleDrag(e.clientY);
+    }
+
+    // [新增] Touch Handlers
+    onTouchStart(e) {
+        if (e.touches.length > 1) return; // Ignore multi-touch on knobs
+        e.preventDefault();
+        e.stopPropagation();
+        this.startDrag(e.touches[0].clientY);
+
+        const moveHandler = (ev) => this.onTouchMove(ev);
+        const endHandler = () => {
+            window.removeEventListener('touchmove', moveHandler);
+            window.removeEventListener('touchend', endHandler);
+            window.removeEventListener('touchcancel', endHandler);
+        };
+        window.addEventListener('touchmove', moveHandler, { passive: false });
+        window.addEventListener('touchend', endHandler);
+        window.addEventListener('touchcancel', endHandler);
+    }
+
+    onTouchMove(e) {
+        e.preventDefault(); // Prevent scrolling
+        this.handleDrag(e.touches[0].clientY);
+    }
+
+    // Shared Logic
+    startDrag(clientY) {
+        this.isDragging = true;
+        this.startY = clientY;
+        this.startValue = this.value;
+    }
+
+    handleDrag(clientY) {
+        const deltaY = this.startY - clientY;
         const range = this.max - this.min;
         const sensitivity = range / 200.0;
         let newVal = this.startValue + deltaY * sensitivity;
