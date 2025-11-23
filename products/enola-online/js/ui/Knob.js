@@ -13,7 +13,8 @@ export class Knob {
 
     createDOM() {
         const div = document.createElement('div');
-        div.className = "nodrag cursor-ns-resize inline-flex flex-col items-center justify-start select-none touch-none"; // Added touch-none
+        // 添加 nodrag 类，告诉 GraphSystem 不要处理这里的拖拽
+        div.className = "nodrag cursor-ns-resize inline-flex flex-col items-center justify-start select-none touch-none";
         div.style.width = `${this.size}px`;
         
         const svgNS = "http://www.w3.org/2000/svg";
@@ -55,7 +56,7 @@ export class Knob {
         // Mouse Events
         div.addEventListener('mousedown', (e) => this.onMouseDown(e));
 
-        // [新增] Touch Events
+        // Touch Events
         div.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
 
         return div;
@@ -79,11 +80,10 @@ export class Knob {
         this.handleDrag(e.clientY);
     }
 
-    // [新增] Touch Handlers
     onTouchStart(e) {
-        if (e.touches.length > 1) return; // Ignore multi-touch on knobs
+        if (e.touches.length > 1) return;
         e.preventDefault();
-        e.stopPropagation();
+        e.stopPropagation(); // 关键：阻止冒泡，不触发地图拖动
         this.startDrag(e.touches[0].clientY);
 
         const moveHandler = (ev) => this.onTouchMove(ev);
@@ -98,11 +98,11 @@ export class Knob {
     }
 
     onTouchMove(e) {
-        e.preventDefault(); // Prevent scrolling
+        e.preventDefault(); 
+        e.stopPropagation();
         this.handleDrag(e.touches[0].clientY);
     }
 
-    // Shared Logic
     startDrag(clientY) {
         this.isDragging = true;
         this.startY = clientY;

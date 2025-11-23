@@ -3,54 +3,21 @@ export const STANDARD_KNOB_SIZE = 36;
 
 export function createNodeShell(id, label, typeStr, widthClass, onContext) {
     const div = document.createElement('div');
-    div.className = `node-container bg-black ${widthClass} select-none group z-10 touch-none`; // Added touch-none
+    // 添加 touch-none，防止移动端滚动
+    div.className = `node-container bg-black ${widthClass} select-none group z-10 touch-none`;
     div.id = id;
 
-    // --- Mouse Context Menu ---
+    // 仅保留 PC 端右键菜单，移动端长按由 GraphSystem 统一处理
     div.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        selectThisNode();
-        if (onContext) onContext(e);
-    });
-
-    // --- Selection Helper ---
-    function selectThisNode() {
         if (!div.classList.contains('selected')) {
             const all = document.querySelectorAll('.node-container.selected');
             all.forEach(n => n.classList.remove('selected'));
             div.classList.add('selected');
         }
-    }
-
-    // --- [新增] Long Press for Mobile Context Menu ---
-    let longPressTimer;
-    const startLongPress = (e) => {
-        if (e.touches.length > 1) return;
-        const touch = e.touches[0];
-        longPressTimer = setTimeout(() => {
-            selectThisNode();
-            // 模拟右键事件对象
-            const mockEvent = {
-                preventDefault: () => {},
-                stopPropagation: () => {},
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                target: div
-            };
-            if (onContext) onContext(mockEvent);
-        }, 500); // 500ms 长按
-    };
-
-    const cancelLongPress = () => {
-        if (longPressTimer) clearTimeout(longPressTimer);
-    };
-
-    div.addEventListener('touchstart', startLongPress, { passive: true });
-    div.addEventListener('touchend', cancelLongPress);
-    div.addEventListener('touchmove', cancelLongPress); // 移动手指取消长按
-    div.addEventListener('touchcancel', cancelLongPress);
-
+        if (onContext) onContext(e);
+    });
 
     const header = document.createElement('div');
     header.className = "bg-[#002200] border-b border-[#00FF00] h-5 flex justify-between items-center px-2 cursor-move header-drag-handle";
@@ -79,7 +46,7 @@ export function createPort(parent, label, handleId, type, side, topPercent) {
     wrapper.style.zIndex = '50';
 
     const portDiv = document.createElement('div');
-    portDiv.className = "port relative z-50 touch-none"; // Added touch-none
+    portDiv.className = "port relative z-50 touch-none"; // 阻止滚动
     portDiv.dataset.handleid = handleId;
     portDiv.dataset.type = type;
 

@@ -63,7 +63,6 @@ initBtn.onclick = async () => {
         if (stateStr) {
             await loadProject(stateStr);
         } else {
-            // Default project
             const masterId = 'master-1';
             const masterVals = ModuleRegistry.getInitialValues(NodeType.MASTER);
             const masterNode = {
@@ -87,7 +86,6 @@ async function loadProject(stateStr) {
         return;
     }
 
-    // 1. 恢复节点
     let maxId = 0;
     state.n.forEach(n => {
         audioSystem.createNode(n.id, n.type, n.v);
@@ -107,7 +105,6 @@ async function loadProject(stateStr) {
 
     nodeIdCounter = maxId + 1;
 
-    // 2. 恢复连线
     state.e.forEach(e => {
         audioSystem.connect(e.s, e.t, e.sh, e.th);
         graph.addEdge({
@@ -118,46 +115,34 @@ async function loadProject(stateStr) {
         });
     });
 
-    // [修复] 强制延时重绘
-    // 解决 DOM 元素刚创建未完成布局导致 getBoundingClientRect 计算错误的问题
     setTimeout(() => {
         graph.updateEdges();
         console.log("Project loaded: Edges realigned.");
     }, 50);
 }
 
-// Export logic
 exportBtn.onclick = async () => {
     exportBtn.disabled = true;
     exportBtn.innerText = "Processing...";
-
     const stateStr = await Persistence.serialize(graph.nodes, graph.edges);
-    
     exportBtn.disabled = false;
     exportBtn.innerText = "EXPORT URL";
-
     if (!stateStr) return;
-
     const baseUrl = window.location.origin + window.location.pathname;
     const fullUrl = `${baseUrl}?data=${stateStr}`;
-
     longUrlBox.value = fullUrl;
     shortUrlContainer.classList.add('hidden');
     convertStatus.innerText = "";
     exportModal.classList.remove('hidden');
 };
 
-closeExport.onclick = () => {
-    exportModal.classList.add('hidden');
-};
+closeExport.onclick = () => exportModal.classList.add('hidden');
 
 convertBtn.onclick = async () => {
     const longUrl = longUrlBox.value;
     convertStatus.innerText = "Converting...";
     convertBtn.disabled = true;
-
     const short = await Persistence.shortenURL(longUrl);
-    
     convertBtn.disabled = false;
     if (short) {
         convertStatus.innerText = "Done!";
@@ -168,12 +153,12 @@ convertBtn.onclick = async () => {
     }
 };
 
-// Toolbar Actions
 document.querySelectorAll('.toolbar-btn').forEach(btn => {
     btn.onclick = () => {
         if (!audioStarted) return;
         const type = btn.dataset.type;
         const newId = addNode(type);
+        // 新模块被创建后，自动选中
         graph.selectNodes([newId]);
     };
 });
@@ -181,18 +166,23 @@ document.querySelectorAll('.toolbar-btn').forEach(btn => {
 function addNode(type, pos = null, values = null) {
     const id = `${type.toLowerCase()}-${nodeIdCounter++}`;
     
-    // 使用 Registry 获取默认值
     let initialValues = values;
     if (!initialValues) {
         initialValues = JSON.parse(JSON.stringify(ModuleRegistry.getInitialValues(type)));
-        
-        // Sequencer 随机化处理
         if (type === NodeType.SEQUENCER) {
             for (let i = 0; i < 8; i++) initialValues[`step${i}`] = Math.floor(Math.random() * 500) + 200;
         }
     }
 
-    const position = pos || { x: 300 + Math.random() * 100, y: 300 + Math.random() * 100 };
+    // [修改] 默认位置在视口左上角
+    let position = pos;
+    if (!position) {
+        const container = document.getElementById('workspace');
+        const rect = container.getBoundingClientRect();
+        const screenX = rect.left + 50; 
+        const screenY = rect.top + 60; 
+        position = graph.screenToWorld(screenX, screenY);
+    }
 
     const node = {
         id,
@@ -206,7 +196,6 @@ function addNode(type, pos = null, values = null) {
     return id;
 }
 
-// Context Menu
 document.addEventListener('click', () => {
     document.getElementById('context-menu').classList.add('hidden');
 });

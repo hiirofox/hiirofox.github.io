@@ -1,7 +1,6 @@
-
 export class Switch {
     constructor(container, options) {
-        this.options = options.options; // [{label, value}]
+        this.options = options.options; 
         this.value = options.value;
         this.onChange = options.onChange;
         this.element = this.createDOM();
@@ -10,7 +9,8 @@ export class Switch {
 
     createDOM() {
         const container = document.createElement('div');
-        container.className = "flex flex-col gap-1 nodrag select-none min-w-[40px]";
+        // nodrag 类告诉 GraphSystem 忽略此处
+        container.className = "flex flex-col gap-1 nodrag select-none min-w-[40px] touch-none";
         this.renderOptions(container);
         return container;
     }
@@ -19,11 +19,10 @@ export class Switch {
         container.innerHTML = '';
         this.options.forEach(opt => {
             const row = document.createElement('div');
-            row.className = "flex items-center gap-2 cursor-pointer group";
+            row.className = "flex items-center gap-2 cursor-pointer group p-0.5";
             
             const isSelected = this.value === opt.value;
             
-            // Box
             const box = document.createElement('div');
             box.className = `w-2 h-2 border border-[#00FF00] flex items-center justify-center ${isSelected ? 'bg-[#00FF00]' : 'bg-black'}`;
             if (isSelected) {
@@ -32,7 +31,6 @@ export class Switch {
                 box.appendChild(inner);
             }
 
-            // Label
             const span = document.createElement('span');
             span.className = `text-[9px] font-arial uppercase tracking-wider leading-none ${isSelected ? 'text-[#00FF00] font-bold' : 'text-[#005500] group-hover:text-[#00AA00]'}`;
             span.innerText = opt.label;
@@ -40,14 +38,20 @@ export class Switch {
             row.appendChild(box);
             row.appendChild(span);
 
-            row.onclick = (e) => {
+            // 处理点击和触摸
+            const handleInteract = (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 if (this.value !== opt.value) {
                     this.value = opt.value;
                     this.onChange(this.value);
-                    this.renderOptions(container); // Re-render
+                    this.renderOptions(container); 
                 }
             };
+
+            row.addEventListener('click', handleInteract);
+            row.addEventListener('touchstart', handleInteract, { passive: false });
+
             container.appendChild(row);
         });
     }
