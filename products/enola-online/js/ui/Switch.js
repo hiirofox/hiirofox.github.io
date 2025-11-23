@@ -19,7 +19,7 @@ export class Switch {
         container.innerHTML = '';
         this.options.forEach(opt => {
             const row = document.createElement('div');
-            row.className = "flex items-center gap-2 cursor-pointer group p-0.5";
+            row.className = "flex items-center gap-2 cursor-pointer group p-0.0";
             
             const isSelected = this.value === opt.value;
             

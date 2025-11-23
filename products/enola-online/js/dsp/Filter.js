@@ -21,7 +21,6 @@ export class Filter extends BaseNode {
     createPort(body, 'OUT', 'output', 'source', 'right', '50%');
 
     const controls = createControlRow(body);
-
     new Switch(controls, {
         value: data.values.type || 'lowpass',
         options: [{ label: 'LPF', value: 'lowpass' }, { label: 'HPF', value: 'highpass' }, { label: 'BPF', value: 'bandpass' }],

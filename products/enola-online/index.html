@@ -3,39 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Enola Online (Static)</title>
+    <title>Enola Online (Mobile Ready)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* 隐藏滚动条但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
 </head>
-<body class="bg-black text-[#00FF00] font-arial overflow-hidden h-screen select-none">
+<body class="bg-black text-[#00FF00] font-arial overflow-hidden h-screen select-none touch-none">
     
-    <div id="toolbar" class="h-10 border-b border-[#00FF00] flex items-center px-4 bg-black justify-between z-50 relative">
-        <div class="flex items-center gap-6">
-            <h1 class="text-lg font-bold tracking-widest">ENOLA_ONLINE</h1>
-            <div id="controls-area">
-                <button id="init-btn" class="bg-[#003300] hover:bg-[#005500] text-[#00FF00] border border-[#00FF00] px-2 py-0 text-sm uppercase">
+    <div id="toolbar" class="h-10 border-b border-[#00FF00] flex items-center px-2 sm:px-4 bg-black justify-between z-50 relative w-full max-w-full overflow-hidden">
+        
+        <div class="flex items-center gap-2 sm:gap-6 flex-1 min-w-0 overflow-hidden">
+            <h1 class="text-xs sm:text-lg font-bold tracking-wide sm:tracking-widest shrink-0">
+                <span class="hidden sm:inline">ENOLA_ONLINE</span>
+                <span class="sm:hidden">ENOLA</span>
+            </h1>
+            
+            <div id="controls-area" class="flex-1 overflow-x-auto no-scrollbar flex items-center">
+                <button id="init-btn" class="bg-[#003300] hover:bg-[#005500] text-[#00FF00] border border-[#00FF00] px-2 py-0 text-xs sm:text-sm uppercase whitespace-nowrap shrink-0">
                     [ Initialize ]
                 </button>
-                <div id="node-buttons" class="flex gap-1 hidden">
+                
+                <div id="node-buttons" class="flex gap-1 hidden w-max pr-4">
                     <button data-type="OSCILLATOR" class="toolbar-btn">VCO</button>
                     <button data-type="FILTER" class="toolbar-btn">VCF</button>
                     <button data-type="GAIN" class="toolbar-btn">VCA</button>
                     <button data-type="LFO" class="toolbar-btn">LFO</button>
-                    <div class="w-2"></div>
+                    <div class="w-2 border-l border-[#003300] mx-1"></div>
                     <button data-type="CLOCK" class="toolbar-btn">CLOCK</button>
                     <button data-type="SEQUENCER" class="toolbar-btn">SEQ</button>
-                    <div class="w-2"></div>
+                    <div class="w-2 border-l border-[#003300] mx-1"></div>
                     <button data-type="ENVELOPE" class="toolbar-btn">ENV</button>
-                    <div class="w-2"></div>
+                    <div class="w-2 border-l border-[#003300] mx-1"></div>
                     <button data-type="MIXER" class="toolbar-btn">MIX</button>
                 </div>
             </div>
         </div>
-        <div class="flex gap-4 items-center">
-            <button id="export-btn" class="hidden text-[#00FF00] text-xs border border-[#00FF00] px-2 py-0.5 hover:bg-[#002200]">
-                EXPORT URL
+
+        <div class="flex gap-2 sm:gap-4 items-center shrink-0 bg-black pl-2 border-l border-[#002200] sm:border-none">
+            <button id="export-btn" class="hidden text-[#00FF00] text-[10px] sm:text-xs border border-[#00FF00] px-2 py-0.5 hover:bg-[#002200] whitespace-nowrap">
+                EXPORT
             </button>
-            <div class="text-[#00FF00] text-[10px] uppercase">v1.0.9 / TOUCH</div>
+            <div class="hidden sm:block text-[#00FF00] text-[10px] uppercase whitespace-nowrap">v1.1.0</div>
         </div>
     </div>
 
@@ -51,17 +68,17 @@
         <div id="selection-box" class="absolute border border-[#00FFFF] border-dashed bg-[#00FFFF]/10 hidden z-50 pointer-events-none"></div>
 
         <div id="standby-overlay" class="absolute inset-0 bg-black/90 flex items-center justify-center z-50 pointer-events-none">
-            <div class="text-[#00FF00] text-center border border-[#00FF00] p-8 bg-black">
-                <p class="text-2xl mb-2 font-bold">SYSTEM STANDBY</p>
-                <p class="text-sm">Waiting for user input...</p>
+            <div class="text-[#00FF00] text-center border border-[#00FF00] p-8 bg-black mx-4">
+                <p class="text-xl sm:text-2xl mb-2 font-bold">SYSTEM STANDBY</p>
+                <p class="text-xs sm:text-sm">Tap Initialize to Start Audio Engine</p>
             </div>
         </div>
 
-        <div id="export-modal" class="absolute inset-0 bg-black/80 flex items-center justify-center z-[100] hidden">
-            <div class="bg-black border border-[#00FF00] p-4 w-[500px] shadow-[0_0_20px_rgba(0,255,0,0.2)]">
+        <div id="export-modal" class="absolute inset-0 bg-black/80 flex items-center justify-center z-[100] hidden px-4">
+            <div class="bg-black border border-[#00FF00] p-4 w-full max-w-[500px] shadow-[0_0_20px_rgba(0,255,0,0.2)]">
                 <div class="flex justify-between items-center mb-4 border-b border-[#003300] pb-2">
                     <h2 class="text-sm font-bold">PROJECT URL</h2>
-                    <button id="close-export" class="text-[#FF0000] text-xs font-bold hover:text-white">[X]</button>
+                    <button id="close-export" class="text-[#FF0000] text-xs font-bold hover:text-white p-2">[X]</button>
                 </div>
                 
                 <p class="text-[10px] text-[#005500] mb-1">LONG URL (Full Data):</p>
@@ -69,7 +86,7 @@
                 
                 <div class="flex justify-between items-center mb-2">
                     <button id="convert-btn" class="bg-[#003300] hover:bg-[#005500] text-[#00FF00] border border-[#00FF00] px-3 py-1 text-xs">
-                        CONVERT TO SHORT LINK
+                        SHORT LINK
                     </button>
                     <span id="convert-status" class="text-[10px] text-[#00AA00]"></span>
                 </div>
@@ -84,9 +101,9 @@
     </div>
 
     <div id="context-menu" class="fixed z-50 bg-black border border-[#00FF00] text-[#00FF00] text-xs shadow-lg hidden">
-        <div id="ctx-duplicate" class="px-4 py-2 hover:bg-[#003300] cursor-pointer border-b border-[#003300]">DUPLICATE (Wires)</div>
-        <div id="ctx-copy" class="px-4 py-2 hover:bg-[#003300] cursor-pointer border-b border-[#003300]">COPY (Module Only)</div>
-        <div id="ctx-delete" class="px-4 py-2 hover:bg-[#330000] cursor-pointer text-[#FF5555]">DELETE</div>
+        <div id="ctx-duplicate" class="px-4 py-3 sm:py-2 hover:bg-[#003300] cursor-pointer border-b border-[#003300]">DUPLICATE</div>
+        <div id="ctx-copy" class="px-4 py-3 sm:py-2 hover:bg-[#003300] cursor-pointer border-b border-[#003300]">COPY</div>
+        <div id="ctx-delete" class="px-4 py-3 sm:py-2 hover:bg-[#330000] cursor-pointer text-[#FF5555]">DELETE</div>
     </div>
 
     <script type="module" src="js/main.js"></script>
