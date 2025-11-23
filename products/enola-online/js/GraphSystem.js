@@ -27,18 +27,22 @@ export class GraphSystem {
         };
 
         this.touchState = {
-            mode: 'IDLE', // IDLE, WAIT, PANNING, DRAGGING_NODE, LONG_PRESS_READY, SELECTING, ZOOMING, CONNECTING
+            mode: 'IDLE', 
             timer: null,
             startScreen: { x: 0, y: 0 },
             startWorld: { x: 0, y: 0 },
             lastScreen: { x: 0, y: 0 },
             initialPinchDist: 0,
             initialScale: 1,
+            pinchStartWorld: { x: 0, y: 0 }, // [新增] 缩放中心点
             initialNodePositions: new Map(),
-            dragTargetId: null
+            dragTargetId: null,
+            lastTapTime: 0,      // [新增] 双击检测
+            lastTapPort: null    // [新增] 双击检测
         };
 
         this.connectionState = { active: false, startNodeId: null, startHandle: null, startType: null, startEl: null };
+        this.pendingSource = null; // [新增] 用于点按连接 ({ nodeId, handleId, portEl })
 
         this.initEvents();
         this.updateTransform();
@@ -64,7 +68,6 @@ export class GraphSystem {
         document.addEventListener('mouseup', (e) => this.handleMouseUp(e));
 
         // --- TOUCH EVENTS (移动端) ---
-        // 注意：passive: false 是必须的，否则 preventDefault 无法阻止浏览器缩放
         this.container.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
         document.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
         document.addEventListener('touchend', (e) => this.handleTouchEnd(e));
@@ -72,10 +75,11 @@ export class GraphSystem {
     }
 
     // =========================================
-    //        核心逻辑：端口交互 (Pickup/Connect)
+    //        核心逻辑：端口交互
     // =========================================
     
     handlePortInteraction(nodeId, handleId, type, portEl) {
+        // 如果是 In 端口且已有线，启动“拿起/重连”逻辑 (Drag 模式)
         if (type === 'target') {
             const existingEdge = this.edges.find(e => e.target === nodeId && e.targetHandle === handleId);
             if (existingEdge) {
@@ -94,6 +98,70 @@ export class GraphSystem {
 
     startConnection(nodeId, handleId, type, portEl) {
         this.connectionState = { active: true, startNodeId: nodeId, startHandle: handleId, startType: type, startEl: portEl };
+    }
+
+    // [新增] 处理端口点击 (点按连接逻辑)
+    handlePortClick(nodeId, handleId, type, portEl) {
+        // 1. 点击 OUT 端口 -> 选中/取消选中
+        if (type === 'source') {
+            if (this.pendingSource && this.pendingSource.portEl === portEl) {
+                // 取消选中
+                this.clearPendingSource();
+            } else {
+                // 选中新源
+                this.clearPendingSource(); // 清除旧的
+                this.pendingSource = { nodeId, handleId, portEl };
+                portEl.style.backgroundColor = '#00FFFF'; // 高亮显示
+                portEl.style.boxShadow = '0 0 5px #00FFFF';
+            }
+        } 
+        // 2. 点击 IN 端口
+        else if (type === 'target') {
+            if (this.pendingSource) {
+                const src = this.pendingSource;
+                
+                // 检查是否已连接
+                const existing = this.edges.find(e => 
+                    e.source === src.nodeId && e.sourceHandle === src.handleId &&
+                    e.target === nodeId && e.targetHandle === handleId
+                );
+
+                if (existing) {
+                    // 已连接 -> 断开
+                    this.callbacks.onDisconnect(src.nodeId, nodeId, src.handleId, handleId);
+                    this.removeEdgeInternal(existing.id);
+                } else {
+                    // 未连接 -> 连接 (tryConnect 会自动处理替换旧线)
+                    this.tryConnect(src.nodeId, src.handleId, nodeId, handleId);
+                }
+                
+                this.clearPendingSource();
+            }
+        }
+    }
+
+    // [新增] 处理端口双击 (断开逻辑)
+    handlePortDoubleClick(portEl) {
+        const type = portEl.dataset.type;
+        if (type === 'target') {
+            const nodeId = portEl.closest('.node-container').id;
+            const handleId = portEl.dataset.handleid;
+            
+            // 找到连接到此端口的线并删除
+            const edges = this.edges.filter(e => e.target === nodeId && e.targetHandle === handleId);
+            edges.forEach(e => {
+                this.callbacks.onDisconnect(e.source, e.target, e.sourceHandle, e.targetHandle);
+                this.removeEdgeInternal(e.id);
+            });
+        }
+    }
+
+    clearPendingSource() {
+        if (this.pendingSource && this.pendingSource.portEl) {
+            this.pendingSource.portEl.style.backgroundColor = ''; // 恢复默认
+            this.pendingSource.portEl.style.boxShadow = '';
+        }
+        this.pendingSource = null;
     }
 
     // =========================================
@@ -140,7 +208,6 @@ export class GraphSystem {
 
         if (nodeEl) {
             this.prepareNodeDrag(nodeEl.id, e.shiftKey);
-            
             if (target.closest('.header-drag-handle')) {
                 this.mouseState.type = 'DRAG_NODE';
             } else {
@@ -173,6 +240,10 @@ export class GraphSystem {
             this.endSelectionBox();
         }
         this.mouseState.active = false;
+        
+        // [修改] 检测是否是点击端口（用于点按连接）
+        // 注意：电脑端已有 Drag 连线，但也可以支持 Click-Click
+        // 这里主要处理拖拽结束
         if (this.connectionState.active) {
             this.finalizeConnection(e);
         }
@@ -185,17 +256,23 @@ export class GraphSystem {
     handleTouchStart(e) {
         if (e.target.closest('.nodrag')) return;
 
+        // [修改] 双指缩放：以双指中心为基准
         if (e.touches.length === 2) {
-            // [关键修改] 强制阻止浏览器缩放手势识别
-            e.preventDefault();
-            
+            e.preventDefault(); // 阻止浏览器缩放
             this.cancelTouchTimer();
             this.touchState.mode = 'ZOOMING';
-            this.touchState.initialPinchDist = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
+            
+            const p1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            const p2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
+            
+            // 计算屏幕中心点
+            const centerScreen = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+            
+            this.touchState.initialPinchDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
             this.touchState.initialScale = this.view.scale;
+            
+            // 记录该中心点对应的世界坐标 (这是缩放的锚点)
+            this.touchState.pinchStartWorld = this.screenToWorld(centerScreen.x, centerScreen.y);
             return;
         }
 
@@ -210,6 +287,17 @@ export class GraphSystem {
             this.touchState.startWorld = this.screenToWorld(touch.clientX, touch.clientY);
 
             if (portEl) {
+                // [新增] 手机端双击检测
+                const now = Date.now();
+                if (this.touchState.lastTapPort === portEl && (now - this.touchState.lastTapTime) < 300) {
+                    this.handlePortDoubleClick(portEl);
+                    e.preventDefault();
+                    this.touchState.lastTapPort = null;
+                    return;
+                }
+                this.touchState.lastTapPort = portEl;
+                this.touchState.lastTapTime = now;
+
                 this.cancelTouchTimer();
                 this.touchState.mode = 'CONNECTING';
                 const type = portEl.dataset.type;
@@ -223,7 +311,6 @@ export class GraphSystem {
             if (nodeEl) {
                 this.cancelTouchTimer();
                 this.prepareNodeDrag(nodeEl.id, false);
-                
                 if (target.closest('.header-drag-handle')) {
                     this.touchState.mode = 'DRAGGING_NODE';
                     this.touchState.dragTargetId = nodeEl.id;
@@ -259,17 +346,32 @@ export class GraphSystem {
             if (e.cancelable) e.preventDefault();
         }
 
+        // [修改] 双指缩放：中心点算法
         if (e.touches.length === 2 && this.touchState.mode === 'ZOOMING') {
-            // [关键修改] 持续阻止浏览器缩放
             e.preventDefault();
             
-            const dist = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
+            const p1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            const p2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
+            
+            // 当前的屏幕中心
+            const centerScreen = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+            const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
             const delta = dist - this.touchState.initialPinchDist;
+            
             const newScale = Math.max(0.1, Math.min(this.touchState.initialScale + delta * 0.002, 5.0));
+            
+            // 计算新的 Pan (x, y)
+            // 逻辑：让 pinchStartWorld 这个点，在缩放后，依然位于 centerScreen 这个位置
+            // 公式推导： screenX = worldX * scale + panX + rectLeft
+            //           panX = screenX - rectLeft - worldX * scale
+            const rect = this.container.getBoundingClientRect();
+            const wx = this.touchState.pinchStartWorld.x;
+            const wy = this.touchState.pinchStartWorld.y;
+            
             this.view.scale = newScale;
+            this.view.x = centerScreen.x - rect.left - wx * newScale;
+            this.view.y = centerScreen.y - rect.top - wy * newScale;
+            
             this.updateTransform();
             return;
         }
@@ -450,6 +552,16 @@ export class GraphSystem {
     finalizeConnection(e) {
         const target = e.target;
         const port = target ? target.closest('.port') : null;
+        
+        // [新增] 检测是否是单纯点击端口 (Drag 距离极小，或者按下和抬起在同一个元素)
+        // 这里使用引用判断
+        if (port && this.connectionState.startEl === port) {
+            const nodeId = port.closest('.node-container').id;
+            const handleId = port.dataset.handleid;
+            const type = port.dataset.type;
+            this.handlePortClick(nodeId, handleId, type, port);
+        }
+
         if (port) {
             const endNodeId = port.closest('.node-container').id;
             const endHandle = port.dataset.handleid;
@@ -577,6 +689,12 @@ export class GraphSystem {
                 const type = port.dataset.type;
                 const handleId = port.dataset.handleid;
                 this.handlePortInteraction(nodeData.id, handleId, type, port);
+            });
+            
+            // [新增] PC端双击断开
+            port.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                this.handlePortDoubleClick(port);
             });
         });
 
