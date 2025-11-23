@@ -57,13 +57,14 @@ export class GraphSystem {
     }
 
     initEvents() {
-        // --- MOUSE EVENTS ---
+        // --- MOUSE EVENTS (电脑端) ---
         this.container.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
         this.container.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         document.addEventListener('mouseup', (e) => this.handleMouseUp(e));
 
-        // --- TOUCH EVENTS ---
+        // --- TOUCH EVENTS (移动端) ---
+        // 注意：passive: false 是必须的，否则 preventDefault 无法阻止浏览器缩放
         this.container.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
         document.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
         document.addEventListener('touchend', (e) => this.handleTouchEnd(e));
@@ -71,7 +72,7 @@ export class GraphSystem {
     }
 
     // =========================================
-    //        核心逻辑：端口交互 & 连线
+    //        核心逻辑：端口交互 (Pickup/Connect)
     // =========================================
     
     handlePortInteraction(nodeId, handleId, type, portEl) {
@@ -138,14 +139,12 @@ export class GraphSystem {
         this.mouseState.startWorld = this.screenToWorld(e.clientX, e.clientY);
 
         if (nodeEl) {
-            // 1. 选中节点
             this.prepareNodeDrag(nodeEl.id, e.shiftKey);
             
-            // 2. 只有点击 Header 才能拖动
             if (target.closest('.header-drag-handle')) {
                 this.mouseState.type = 'DRAG_NODE';
             } else {
-                this.mouseState.type = null; // 仅选中
+                this.mouseState.type = null; 
             }
         } else {
             this.mouseState.type = 'SELECT';
@@ -187,6 +186,9 @@ export class GraphSystem {
         if (e.target.closest('.nodrag')) return;
 
         if (e.touches.length === 2) {
+            // [关键修改] 强制阻止浏览器缩放手势识别
+            e.preventDefault();
+            
             this.cancelTouchTimer();
             this.touchState.mode = 'ZOOMING';
             this.touchState.initialPinchDist = Math.hypot(
@@ -222,12 +224,11 @@ export class GraphSystem {
                 this.cancelTouchTimer();
                 this.prepareNodeDrag(nodeEl.id, false);
                 
-                // 只有点击 Header 才能拖动
                 if (target.closest('.header-drag-handle')) {
                     this.touchState.mode = 'DRAGGING_NODE';
                     this.touchState.dragTargetId = nodeEl.id;
                 } else {
-                    this.touchState.mode = 'IDLE'; // 仅选中
+                    this.touchState.mode = 'IDLE';
                 }
                 return;
             }
@@ -259,6 +260,9 @@ export class GraphSystem {
         }
 
         if (e.touches.length === 2 && this.touchState.mode === 'ZOOMING') {
+            // [关键修改] 持续阻止浏览器缩放
+            e.preventDefault();
+            
             const dist = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
@@ -344,7 +348,6 @@ export class GraphSystem {
     //               通用逻辑实现
     // =========================================
 
-    // [修复] 找回 selectNodes 方法
     selectNodes(ids) {
         this.deselectAll();
         ids.forEach(id => {
@@ -491,10 +494,8 @@ export class GraphSystem {
     
     updateEdges() { this.renderEdges(); }
     
-    // [修改] 贝塞尔曲线硬度
     getBezierPath(sx, sy, tx, ty) {
         let dist = Math.abs(tx - sx);
-        // 限制 padding 范围 [10, 30] 使线条更硬
         const padding = Math.max(10, Math.min(dist * 0.5, 30));
         return `M ${sx} ${sy} C ${sx + padding} ${sy}, ${tx - padding} ${ty}, ${tx} ${ty}`;
     }

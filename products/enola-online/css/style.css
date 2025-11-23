@@ -2,6 +2,13 @@ body {
     background-color: #000000;
     color: #00FF00;
     font-family: Arial, sans-serif;
+    /* [修改] 禁止浏览器默认手势 (如双指缩放、滚动)，完全由JS接管 */
+    touch-action: none;
+}
+
+/* 恢复输入框的交互能力，否则无法选中文本 */
+textarea, input {
+    touch-action: auto;
 }
 
 /* Scrollbar */
@@ -47,7 +54,6 @@ body {
     background: black;
     border: 1px solid #00FF00;
     box-shadow: 0 0 10px rgba(0,255,0,0.5);
-    /* 关键修改：移除了 will-change: transform; 这能保证缩放时文字依然锐利 */
 }
 
 /* Selection Style: No white border */
@@ -71,7 +77,6 @@ body {
 
 /* Grid Pattern */
 #grid-layer {
-    /* 关键修改：颜色改为 #003300 */
     background-image: linear-gradient(#007700 1px, transparent 1px),
                       linear-gradient(90deg, #007700 1px, transparent 1px);
     background-size: 20px 20px;
