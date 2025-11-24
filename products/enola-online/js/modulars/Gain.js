@@ -9,19 +9,20 @@ export class Gain extends BaseNode {
     label: 'AMPLIFIER',
     shortLabel: 'VCA',
     workletPath: 'js/modulars/processors/GainProcessor.js',
+    wasmPath: 'wasm/gain.wasm', // [请添加此行]
     initialValues: { gain: 0.5 }
   };
 
   static renderUI(id, data, onChange, onContext) {
     const { root, body } = createNodeShell(id, this.meta.label, this.meta.shortLabel, 'min-w-[120px]', onContext);
-    
+
     createPort(body, 'IN', 'input', 'target', 'left', '25%');
     createPort(body, 'CV', 'input-cv', 'target', 'left', '75%');
     createPort(body, 'OUT', 'output', 'source', 'right', '50%');
 
     const controls = createControlRow(body);
     new Knob(controls, { size: STANDARD_KNOB_SIZE, label: 'AMT', value: data.values.gain !== undefined ? data.values.gain : 0.5, min: 0, max: 1, onChange: (v) => onChange(id, 'gain', v) });
-    
+
     return root;
   }
 
@@ -34,10 +35,10 @@ export class Gain extends BaseNode {
     const gainVal = initialValues?.gain !== undefined ? initialValues.gain : Gain.meta.initialValues.gain;
 
     this.worklet = new AudioWorkletNode(this.context, 'gain-processor', {
-        numberOfInputs: 2,
-        numberOfOutputs: 1,
-        outputChannelCount: [1],
-        parameterData: { gain: gainVal }
+      numberOfInputs: 2,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+      parameterData: { gain: gainVal }
     });
 
     this.input = this.worklet;
@@ -51,10 +52,10 @@ export class Gain extends BaseNode {
   }
 
   setProperty(key, value) {
-      if (key === 'gain') {
-          const param = this.worklet.parameters.get('gain');
-          if(param) param.setValueAtTime(value, this.context.currentTime);
-      }
+    if (key === 'gain') {
+      const param = this.worklet.parameters.get('gain');
+      if (param) param.setValueAtTime(value, this.context.currentTime);
+    }
   }
 
   destroy() {

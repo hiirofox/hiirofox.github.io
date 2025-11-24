@@ -10,6 +10,7 @@ export class Oscillator extends BaseNode {
     label: 'OSCILLATOR',
     shortLabel: 'VCO',
     workletPath: 'js/modulars/processors/OscillatorProcessor.js',
+    wasmPath: 'wasm/oscillator.wasm',
     initialValues: { pitch: 40, type: 'sawtooth', pwm: 0.5, sync: 1.0 }
   };
 

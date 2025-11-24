@@ -1,6 +1,7 @@
 // js/services/AudioSystem.js
 import { NodeType } from '../types.js';
 import { ModuleRegistry } from '../ModuleRegistry.js';
+import { WasmService } from './WasmService.js';
 
 class AudioSystem {
   constructor() {
@@ -23,31 +24,42 @@ class AudioSystem {
     }
 
     if (!this.modulesLoaded) {
+      const worklets = ModuleRegistry.getAllWorklets();
       try {
-        // [修改] 动态加载所有注册模块的 Worklets
-        const worklets = ModuleRegistry.getAllWorklets();
         await Promise.all(worklets.map(path => ctx.audioWorklet.addModule(path)));
-
-        console.log("All Registered Audio Worklet Modules Loaded");
+        console.log("[AudioSystem] Audio Worklets Ready");
         this.modulesLoaded = true;
       } catch (e) {
-        console.error("Failed to load audio worklets", e);
+        console.error("[AudioSystem] Worklet Load Error:", e);
       }
     }
   }
 
-  createNode(id, type, initialValues) {
+  async createNode(id, type, initialValues) {
     const ctx = this.getContext();
-    
-    // [修改] 从 Registry 获取类
     const NodeClass = ModuleRegistry.getClass(type);
 
     if (NodeClass) {
-        const node = new NodeClass(id, ctx);
+      const node = new NodeClass(id, ctx);
+      try {
         node.initialize(initialValues);
         this.nodes.set(id, node);
-    } else {
-        console.warn(`Unknown node type: ${type}`);
+
+        // 统一加载 WASM 逻辑
+        if (NodeClass.meta.wasmPath && node.worklet) {
+          // console.log(`[AudioSystem] 🚀 Fetching WASM for ${type}...`);
+          const buffer = await WasmService.loadModule(NodeClass.meta.wasmPath);
+
+          if (buffer) {
+            node.worklet.port.postMessage({
+              type: 'load-wasm',
+              payload: { wasmBuffer: buffer } // 必须是 wasmBuffer
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`[AudioSystem] Init Error ${type}:`, err);
+      }
     }
   }
 
@@ -62,7 +74,6 @@ class AudioSystem {
   updateParam(id, param, value) {
     const node = this.nodes.get(id);
     if (!node) return;
-
     const audioParam = node.params.get(param);
     if (audioParam && typeof audioParam.setTargetAtTime === 'function' && typeof value === 'number') {
       audioParam.setTargetAtTime(value, this.getContext().currentTime, 0.05);
@@ -71,7 +82,6 @@ class AudioSystem {
     }
   }
 
-  // Connect/Disconnect 逻辑保持不变，因为它们基于通用 Handle 字符串
   connect(sourceId, targetId, sourceHandle, targetHandle) {
     const sourceNode = this.nodes.get(sourceId);
     const targetNode = this.nodes.get(targetId);
@@ -105,7 +115,7 @@ class AudioSystem {
       } else if (targetNode.input) {
         sourceNode.output.connect(targetNode.input, outputIndex, inputIndex);
       }
-    } catch (e) { console.error("Connection failed", e); }
+    } catch (e) { }
   }
 
   disconnect(sourceId, targetId, sourceHandle, targetHandle) {

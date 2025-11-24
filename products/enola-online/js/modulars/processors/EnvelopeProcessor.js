@@ -1,90 +1,80 @@
+let sharedEnvWasm = null;
+
 class EnvelopeProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
-        this.STATE = { IDLE: 0, ATTACK: 1, DECAY: 2 };
-        this.currentState = 0; 
-        this.timeAccumulator = 0;
-        this.lastTrig = 0;
-        this.currentValue = 0;
+        this.wasm = null;
+        this.float32Ram = null;
+        this.statePtr = 0;
+        this.ready = false;
+        this.api = { malloc: null, process: null, create_state: null };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'load-wasm') this.init(e.data.payload.wasmBuffer);
+        };
+    }
+
+    async init(wasmBuffer) {
+        if (!sharedEnvWasm) {
+            const result = await WebAssembly.instantiate(wasmBuffer, { env: {} });
+            sharedEnvWasm = result.instance.exports;
+        }
+        this.wasm = sharedEnvWasm;
+
+        const findFn = (name) => this.wasm[name] || this.wasm[`_${name}`];
+        this.api.malloc = findFn('malloc');
+        this.api.process = findFn('process');
+        this.api.create_state = findFn('create_state');
+
+        const blockSize = 128 * 4;
+        this.P_CV = this.api.malloc(blockSize);
+        this.P_PHS = this.api.malloc(blockSize);
+        this.P_TRIG = this.api.malloc(blockSize);
+
+        this.statePtr = this.api.create_state();
+        this.ready = true;
+    }
+
+    updateMemory() {
+        if (!this.float32Ram || this.float32Ram.buffer !== this.wasm.memory.buffer) {
+            this.float32Ram = new Float32Array(this.wasm.memory.buffer);
+        }
     }
 
     static get parameterDescriptors() {
-        // [修改點] 將最大值從 2.0 改為 1.0，提高調節精度
         return [
-            { name: 'attack', defaultValue: 0.01, minValue: 0.00001, maxValue: 0.1 },
-            { name: 'decay', defaultValue: 0.05, minValue: 0.00001, maxValue: 4.0 }
+            { name: 'attack', defaultValue: 0.1, minValue: 0.001 },
+            { name: 'decay', defaultValue: 0.5, minValue: 0.001 }
         ];
     }
 
     process(inputs, outputs, parameters) {
-        const outputCV = outputs[0][0];
-        const outputPhase = outputs[0][1]; 
-        
-        const inputTrig = inputs[0][0];
-        
-        const attackParams = parameters.attack;
-        const decayParams = parameters.decay;
-        
-        const currentSampleRate = sampleRate;
-        const dt = 1 / currentSampleRate;
-        const hasPhaseOut = !!outputPhase;
+        if (!this.ready) return true;
+        this.updateMemory();
 
-        for (let i = 0; i < outputCV.length; i++) {
-            const trig = inputTrig ? inputTrig[i] : 0;
-            const attack = attackParams.length > 1 ? attackParams[i] : attackParams[0];
-            const decay = decayParams.length > 1 ? decayParams[i] : decayParams[0];
+        const outCv = outputs[0][0];
+        const outPhs = outputs[0][1];
+        const trigIn = inputs[0][0];
+        const len = outCv.length;
 
-            // Trigger Logic
-            if (trig > 0.5 && this.lastTrig <= 0.5) {
-                this.currentState = this.STATE.ATTACK;
-                this.timeAccumulator = 0;
-            }
-            this.lastTrig = trig;
+        if (trigIn) this.float32Ram.set(trigIn, this.P_TRIG >> 2);
+        else this.float32Ram.fill(0, this.P_TRIG >> 2, (this.P_TRIG >> 2) + len);
 
-            let phaseOutput = 0; 
+        this.api.process(
+            this.statePtr,
+            this.P_CV,
+            this.P_PHS,
+            this.P_TRIG,
+            len,
+            sampleRate,
+            parameters.attack[0],
+            parameters.decay[0]
+        );
 
-            if (this.currentState === this.STATE.ATTACK) {
-                this.timeAccumulator += dt;
-                // Linear Attack
-                this.currentValue = this.timeAccumulator / attack;
-                
-                const totalDur = attack + decay;
-                phaseOutput = (this.timeAccumulator) / totalDur;
-
-                if (this.timeAccumulator >= attack) {
-                    this.currentValue = 1.0;
-                    this.currentState = this.STATE.DECAY;
-                    this.timeAccumulator = 0; 
-                }
-            } 
-            else if (this.currentState === this.STATE.DECAY) {
-                this.timeAccumulator += dt;
-                
-                // Exponential Decay (3rd power)
-                const linearProgress = 1.0 - (this.timeAccumulator / decay);
-                this.currentValue = Math.pow(Math.max(0, linearProgress), 3.0);
-                
-                const totalDur = attack + decay;
-                phaseOutput = (attack + this.timeAccumulator) / totalDur;
-
-                if (this.timeAccumulator >= decay) {
-                    this.currentValue = 0.0;
-                    this.currentState = this.STATE.IDLE;
-                    phaseOutput = 0;
-                }
-            } else {
-                this.currentValue = 0.0;
-                phaseOutput = 0;
-            }
-
-            this.currentValue = Math.max(0, Math.min(1, this.currentValue));
-            
-            outputCV[i] = this.currentValue;
-            if (hasPhaseOut) outputPhase[i] = phaseOutput;
-        }
+        outCv.set(this.float32Ram.subarray(this.P_CV >> 2, (this.P_CV >> 2) + len));
+        if (outPhs) outPhs.set(this.float32Ram.subarray(this.P_PHS >> 2, (this.P_PHS >> 2) + len));
 
         return true;
     }
 }
-
 registerProcessor('envelope-processor', EnvelopeProcessor);

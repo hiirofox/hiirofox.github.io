@@ -1,64 +1,70 @@
+let sharedClockWasm = null;
+
 class ClockProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
-        this.counter = 0;
-        this.divCounter = 0;
-        this.isHigh = false;
-        this.samplesPerBeat = 0;
+        this.wasm = null;
+        this.float32Ram = null;
+        this.statePtr = 0;
+        this.ready = false;
+        this.api = { malloc: null, process: null, create_state: null };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'load-wasm') this.init(e.data.payload.wasmBuffer);
+        };
+    }
+
+    async init(wasmBuffer) {
+        if (!sharedClockWasm) {
+            const result = await WebAssembly.instantiate(wasmBuffer, { env: {} });
+            sharedClockWasm = result.instance.exports;
+        }
+        this.wasm = sharedClockWasm;
+
+        const findFn = (name) => this.wasm[name] || this.wasm[`_${name}`];
+        this.api.malloc = findFn('malloc');
+        this.api.process = findFn('process');
+        this.api.create_state = findFn('create_state');
+
+        const blockSize = 128 * 4;
+        this.P_TRIG = this.api.malloc(blockSize);
+        this.P_DIV = this.api.malloc(blockSize);
+        
+        this.statePtr = this.api.create_state();
+        this.ready = true;
+    }
+
+    updateMemory() {
+        if (!this.float32Ram || this.float32Ram.buffer !== this.wasm.memory.buffer) {
+            this.float32Ram = new Float32Array(this.wasm.memory.buffer);
+        }
     }
 
     static get parameterDescriptors() {
-        return [
-            { name: 'bpm', defaultValue: 120, minValue: 40, maxValue: 300 }
-        ];
+        return [{ name: 'bpm', defaultValue: 120 }];
     }
 
     process(inputs, outputs, parameters) {
-        // Output 0: 包含两个声道 (ch0: Trig, ch1: Div)
-        const output = outputs[0];
-        const outTrig = output[0];
-        const outDiv = output[1];
+        if (!this.ready) return true;
+        this.updateMemory();
 
-        const bpmParams = parameters.bpm;
-        const currentSampleRate = sampleRate;
+        const outTrig = outputs[0][0];
+        const outDiv = outputs[0][1];
+        const len = outTrig.length;
 
-        // 简单的脉宽逻辑
-        const pulseWidthSamples = Math.floor(0.01 * currentSampleRate);
+        this.api.process(
+            this.statePtr,
+            this.P_TRIG,
+            this.P_DIV,
+            len,
+            sampleRate,
+            parameters.bpm[0]
+        );
 
-        for (let i = 0; i < outTrig.length; i++) {
-            const bpm = bpmParams.length > 1 ? bpmParams[i] : bpmParams[0];
-
-            // 计算每拍采样数 (16分音符)
-            // (60 / bpm) * sampleRate * 0.5 / 16  <-- 沿用之前的逻辑
-            // 简化为: (sampleRate * 1.875) / bpm
-            this.samplesPerBeat = sampleRate / (bpm / 60.0) / 4;
-
-            this.counter++;
-
-            if (this.counter >= this.samplesPerBeat) {
-                this.counter = 0;
-                this.isHigh = true;
-                this.divCounter++;
-                if (this.divCounter >= 8) {
-                    this.divCounter = 0;
-                }
-            }
-
-            if (this.counter > pulseWidthSamples) {
-                this.isHigh = false;
-            }
-
-            const signal = this.isHigh ? 1.0 : 0.0;
-
-            outTrig[i] = signal;
-            // 如果只有单声道设备，outDiv 可能未定义，需检查
-            if (outDiv) {
-                outDiv[i] = (this.divCounter === 0 && this.isHigh) ? 1.0 : 0.0;
-            }
-        }
+        outTrig.set(this.float32Ram.subarray(this.P_TRIG >> 2, (this.P_TRIG >> 2) + len));
+        if (outDiv) outDiv.set(this.float32Ram.subarray(this.P_DIV >> 2, (this.P_DIV >> 2) + len));
 
         return true;
     }
 }
-
 registerProcessor('clock-processor', ClockProcessor);

@@ -1,16 +1,65 @@
+// [优化] 模块级变量，所有 Oscillator 共享同一个 WASM 实例
+let sharedOscWasm = null;
+
 class OscillatorProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
         this.type = 'sawtooth';
-        this.masterPhase = 0;
-        this.slavePhase = 0;
-        this.DIV12 = 1.0 / 12.0;
+        this.typeMap = { 'sawtooth': 0, 'square': 1, 'sine': 2, 'triangle': 3 };
+        
+        this.wasm = null;
+        this.float32Ram = null;
+        this.statePtr = 0;
+        this.ready = false;
+        
+        this.P_OUT = 0;
+        this.P_FREQ = 0;
+        this.P_SHIFT = 0;
+        
+        this.api = { malloc: null, process: null, create_state: null, set_type: null };
 
         this.port.onmessage = (e) => {
             if (e.data.type === 'config') {
-                if (e.data.payload.type) this.type = e.data.payload.type;
+                this.type = e.data.payload.type;
+                if (this.ready) this.api.set_type(this.statePtr, this.typeMap[this.type] || 0);
+            } else if (e.data.type === 'load-wasm') {
+                this.init(e.data.payload.wasmBuffer);
             }
         };
+    }
+
+    async init(wasmBuffer) {
+        try {
+            // [核心优化] 如果已经有实例，直接复用
+            if (!sharedOscWasm) {
+                const result = await WebAssembly.instantiate(wasmBuffer, { env: {} });
+                sharedOscWasm = result.instance.exports;
+            }
+            this.wasm = sharedOscWasm;
+
+            const findFn = (name) => this.wasm[name] || this.wasm[`_${name}`];
+            this.api.malloc = findFn('malloc');
+            this.api.process = findFn('process');
+            this.api.create_state = findFn('create_state');
+            this.api.set_type = findFn('set_type');
+
+            const blockSize = 128 * 4;
+            this.P_OUT = this.api.malloc(blockSize);
+            this.P_FREQ = this.api.malloc(blockSize);
+            this.P_SHIFT = this.api.malloc(blockSize);
+            this.statePtr = this.api.create_state();
+            
+            this.api.set_type(this.statePtr, this.typeMap[this.type] || 0);
+            this.ready = true;
+        } catch (e) {
+            console.error("OSC Init Error:", e);
+        }
+    }
+
+    updateMemory() {
+        if (!this.float32Ram || this.float32Ram.buffer !== this.wasm.memory.buffer) {
+            this.float32Ram = new Float32Array(this.wasm.memory.buffer);
+        }
     }
 
     static get parameterDescriptors() {
@@ -22,74 +71,35 @@ class OscillatorProcessor extends AudioWorkletProcessor {
     }
 
     process(inputs, outputs, parameters) {
-        const output = outputs[0];
-        const channel = output[0];
+        if (!this.ready) return true;
+        this.updateMemory();
 
-        // inputs[0] -> FREQ, inputs[1] -> SHIFT
-        const freqInput = inputs[0];
-        const shiftInput = inputs[1];
+        const outCh = outputs[0][0];
+        const freqCh = inputs[0][0];
+        const shiftCh = inputs[1][0];
+        const len = outCh.length;
 
-        // 检查输入是否已连接且有数据
-        const freqChannel = (freqInput && freqInput.length > 0) ? freqInput[0] : null;
-        const shiftChannel = (shiftInput && shiftInput.length > 0) ? shiftInput[0] : null;
+        if (freqCh) this.float32Ram.set(freqCh, this.P_FREQ >> 2);
+        else this.float32Ram.fill(0, this.P_FREQ >> 2, (this.P_FREQ >> 2) + len);
 
-        const pitchParams = parameters.pitch;
-        const pwmParams = parameters.pwm;
-        const syncParams = parameters.sync;
+        if (shiftCh) this.float32Ram.set(shiftCh, this.P_SHIFT >> 2);
+        else this.float32Ram.fill(0, this.P_SHIFT >> 2, (this.P_SHIFT >> 2) + len);
 
-        // 【修正点】：直接使用全局变量 sampleRate
-        // 在 AudioWorkletGlobalScope 中，sampleRate 是全局可见的，不能通过 this.context 访问
-        const currentSampleRate = sampleRate;
+        const p = parameters;
+        this.api.process(
+            this.statePtr,
+            this.P_OUT,
+            this.P_FREQ,
+            this.P_SHIFT,
+            len,
+            sampleRate,
+            p.pitch.length > 1 ? p.pitch[0] : p.pitch[0],
+            p.pwm[0],
+            p.sync[0]
+        );
 
-        for (let i = 0; i < channel.length; i++) {
-            const inF = freqChannel ? freqChannel[i] : 0;
-            const inS = shiftChannel ? shiftChannel[i] : 0;
-
-            // 处理 AudioParam (长度可能是 1 或 128)
-            const pitch = pitchParams.length > 1 ? pitchParams[i] : pitchParams[0];
-            const pwm = pwmParams.length > 1 ? pwmParams[i] : pwmParams[0];
-            const sync = syncParams.length > 1 ? syncParams[i] : syncParams[0];
-
-            const baseHz = inF * 500.0;
-            const exponent = (pitch + inS * 24.0) * this.DIV12;
-            const offsetHz = Math.pow(2, exponent);
-            const finalBaseFreq = Math.max(0, baseHz + offsetHz);
-
-            const slaveFreq = finalBaseFreq * sync;
-
-            const masterStep = finalBaseFreq / currentSampleRate;
-            const slaveStep = slaveFreq / currentSampleRate;
-
-            this.masterPhase += masterStep;
-            if (this.masterPhase >= 1.0) {
-                this.masterPhase -= Math.floor(this.masterPhase);
-                this.slavePhase = 0;
-            }
-
-            this.slavePhase += slaveStep;
-            if (this.slavePhase >= 1.0) this.slavePhase -= Math.floor(this.slavePhase);
-
-            let sample = 0;
-            switch (this.type) {
-                case 'sawtooth':
-                    sample = 2.0 * (this.slavePhase - 0.5);
-                    break;
-                case 'square':
-                    sample = this.slavePhase < pwm ? 1.0 : -1.0;
-                    break;
-                case 'sine':
-                    sample = Math.sin(this.slavePhase * 2.0 * Math.PI);
-                    break;
-                case 'triangle':
-                    sample = 4.0 * Math.abs(this.slavePhase - 0.5) - 1.0;
-                    break;
-            }
-
-            channel[i] = sample;
-        }
-
+        outCh.set(this.float32Ram.subarray(this.P_OUT >> 2, (this.P_OUT >> 2) + len));
         return true;
     }
 }
-
 registerProcessor('oscillator-processor', OscillatorProcessor);

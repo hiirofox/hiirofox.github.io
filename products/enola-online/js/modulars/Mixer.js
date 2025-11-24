@@ -9,6 +9,7 @@ export class Mixer extends BaseNode {
     label: 'MIXER',
     shortLabel: 'MIX',
     workletPath: 'js/modulars/processors/MixerProcessor.js',
+    wasmPath: 'wasm/mixer.wasm', // [请添加此行]
     initialValues: { gain0: 1, gain1: 1, gain2: 1, gain3: 1 }
   };
 
@@ -25,13 +26,13 @@ export class Mixer extends BaseNode {
     content.className = "flex flex-row items-center justify-center w-full p-2 gap-2 pl-2 pr-4";
 
     for (let i = 0; i < 4; i++) {
-        new Knob(content, {
-            size: 36,
-            label: `CH${i + 1}`,
-            value: data.values[`gain${i}`] !== undefined ? data.values[`gain${i}`] : 1.0,
-            min: 0, max: 2,
-            onChange: (v) => onChange(id, `gain${i}`, v)
-        });
+      new Knob(content, {
+        size: 36,
+        label: `CH${i + 1}`,
+        value: data.values[`gain${i}`] !== undefined ? data.values[`gain${i}`] : 1.0,
+        min: 0, max: 2,
+        onChange: (v) => onChange(id, `gain${i}`, v)
+      });
     }
 
     body.appendChild(content);
@@ -45,22 +46,22 @@ export class Mixer extends BaseNode {
 
   initialize(initialValues) {
     const paramData = {};
-    for(let i=0; i<4; i++) {
-        paramData[`gain${i}`] = initialValues?.[`gain${i}`] !== undefined ? initialValues[`gain${i}`] : 1.0;
+    for (let i = 0; i < 4; i++) {
+      paramData[`gain${i}`] = initialValues?.[`gain${i}`] !== undefined ? initialValues[`gain${i}`] : 1.0;
     }
 
     this.worklet = new AudioWorkletNode(this.context, 'mixer-processor', {
-        numberOfInputs: 4, 
-        numberOfOutputs: 1,
-        outputChannelCount: [1],
-        parameterData: paramData
+      numberOfInputs: 4,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+      parameterData: paramData
     });
 
     this.input = this.worklet;
     this.output = this.worklet;
 
-    for(let i=0; i<4; i++) {
-        this.params.set(`gain${i}`, this.worklet.parameters.get(`gain${i}`));
+    for (let i = 0; i < 4; i++) {
+      this.params.set(`gain${i}`, this.worklet.parameters.get(`gain${i}`));
     }
 
     const silencer = this.context.createGain();
@@ -72,7 +73,7 @@ export class Mixer extends BaseNode {
   setProperty(key, value) {
     const param = this.worklet.parameters.get(key);
     if (param) {
-        param.setValueAtTime(value, this.context.currentTime);
+      param.setValueAtTime(value, this.context.currentTime);
     }
   }
 

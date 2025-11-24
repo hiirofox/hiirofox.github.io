@@ -1,15 +1,60 @@
+let sharedLfoWasm = null;
+
 class LFOProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
         this.type = 'sine';
-        this.phase = 0;
-        this.lastReset = 0;
+        this.typeMap = { 'sine': 0, 'square': 1, 'sawtooth': 2, 'triangle': 3 };
+        
+        this.wasm = null;
+        this.float32Ram = null;
+        this.statePtr = 0;
+        this.ready = false;
+        
+        this.api = { malloc: null, process: null, create_state: null, set_type: null };
 
         this.port.onmessage = (e) => {
             if (e.data.type === 'config') {
                 this.type = e.data.payload.type;
+                if (this.ready) this.api.set_type(this.statePtr, this.typeMap[this.type] || 0);
+            } else if (e.data.type === 'load-wasm') {
+                this.init(e.data.payload.wasmBuffer);
             }
         };
+    }
+
+    async init(wasmBuffer) {
+        try {
+            if (!sharedLfoWasm) {
+                const result = await WebAssembly.instantiate(wasmBuffer, { env: {} });
+                sharedLfoWasm = result.instance.exports;
+            }
+            this.wasm = sharedLfoWasm;
+
+            const findFn = (name) => this.wasm[name] || this.wasm[`_${name}`];
+            this.api.malloc = findFn('malloc');
+            this.api.process = findFn('process');
+            this.api.create_state = findFn('create_state');
+            this.api.set_type = findFn('set_type');
+
+            const blockSize = 128 * 4;
+            this.P_OUT_SIG = this.api.malloc(blockSize);
+            this.P_OUT_PHS = this.api.malloc(blockSize);
+            this.P_RATE = this.api.malloc(blockSize);
+            this.P_RST = this.api.malloc(blockSize);
+
+            this.statePtr = this.api.create_state();
+            this.api.set_type(this.statePtr, this.typeMap[this.type] || 0);
+            this.ready = true;
+        } catch (e) {
+            console.error("LFO Init Error:", e);
+        }
+    }
+
+    updateMemory() {
+        if (!this.float32Ram || this.float32Ram.buffer !== this.wasm.memory.buffer) {
+            this.float32Ram = new Float32Array(this.wasm.memory.buffer);
+        }
     }
 
     static get parameterDescriptors() {
@@ -20,67 +65,37 @@ class LFOProcessor extends AudioWorkletProcessor {
     }
 
     process(inputs, outputs, parameters) {
-        // Output 0: Contains 2 channels
-        // Channel 0: Audio Signal
-        // Channel 1: Phase Signal (for UI)
-        const output = outputs[0];
-        const outSignal = output[0];
-        const outPhase = output[1];
+        if (!this.ready) return true;
+        this.updateMemory();
 
-        const rateInput = inputs[0];
-        const resetInput = inputs[1];
-        const rateChannel = (rateInput && rateInput.length > 0) ? rateInput[0] : null;
-        const resetChannel = (resetInput && resetInput.length > 0) ? resetInput[0] : null;
+        const outSig = outputs[0][0];
+        const outPhs = outputs[0][1];
+        const rateIn = inputs[0][0];
+        const rstIn = inputs[1][0];
+        const len = outSig.length;
 
-        const freqParams = parameters.frequency;
-        const gainParams = parameters.gain;
+        if (rateIn) this.float32Ram.set(rateIn, this.P_RATE >> 2);
+        else this.float32Ram.fill(0, this.P_RATE >> 2, (this.P_RATE >> 2) + len);
 
-        const currentSampleRate = sampleRate;
-        const hasPhaseOut = !!outPhase;
+        if (rstIn) this.float32Ram.set(rstIn, this.P_RST >> 2);
+        else this.float32Ram.fill(0, this.P_RST >> 2, (this.P_RST >> 2) + len);
 
-        for (let i = 0; i < outSignal.length; i++) {
-            const rMod = rateChannel ? rateChannel[i] : 0;
-            const reset = resetChannel ? resetChannel[i] : 0;
+        this.api.process(
+            this.statePtr,
+            this.P_OUT_SIG,
+            this.P_OUT_PHS,
+            this.P_RATE,
+            this.P_RST,
+            len,
+            sampleRate,
+            parameters.frequency[0],
+            parameters.gain[0]
+        );
 
-            const freq = freqParams.length > 1 ? freqParams[i] : freqParams[0];
-            const gain = gainParams.length > 1 ? gainParams[i] : gainParams[0];
-            const g = gain / 1000.0;
-
-            if (reset > 0.5 && this.lastReset <= 0.5) {
-                this.phase = 0;
-            }
-            this.lastReset = reset;
-
-            let currentFreq = freq * freq / 100.0 + (rMod * 100.0);
-
-            this.phase += currentFreq / currentSampleRate;
-            if (this.phase >= 1.0) this.phase -= 1.0;
-            if (this.phase < 0) this.phase += 1.0;
-
-            let sample = 0;
-            switch (this.type) {
-                case 'sawtooth':
-                    sample = 2.0 * (this.phase - 0.5);
-                    break;
-                case 'square':
-                    sample = this.phase < 0.5 ? 1.0 : -1.0;
-                    break;
-                case 'sine':
-                    sample = Math.sin(this.phase * 2.0 * Math.PI);
-                    break;
-                case 'triangle':
-                    sample = (0.5 - Math.abs(this.phase - 0.5)) * 4.0 - 2.0;
-                    break;
-            }
-
-            outSignal[i] = sample * g;
-
-            // 输出相位 (0.0 ~ 1.0) 用于 UI 绘制
-            if (hasPhaseOut) outPhase[i] = this.phase;
-        }
+        outSig.set(this.float32Ram.subarray(this.P_OUT_SIG >> 2, (this.P_OUT_SIG >> 2) + len));
+        if (outPhs) outPhs.set(this.float32Ram.subarray(this.P_OUT_PHS >> 2, (this.P_OUT_PHS >> 2) + len));
 
         return true;
     }
 }
-
 registerProcessor('lfo-processor', LFOProcessor);

@@ -10,6 +10,8 @@ export class LFO extends BaseNode {
     label: 'LFO',
     shortLabel: 'MOD',
     workletPath: 'js/modulars/processors/LFOProcessor.js',
+    // [关键修复] 添加 WASM 路径
+    wasmPath: 'wasm/lfo.wasm',
     initialValues: { frequency: 5, gain: 100, type: 'sine' }
   };
 

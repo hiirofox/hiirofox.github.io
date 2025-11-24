@@ -9,6 +9,7 @@ export class Clock extends BaseNode {
     label: 'CLOCK',
     shortLabel: 'CLK',
     workletPath: 'js/modulars/processors/ClockProcessor.js',
+    wasmPath: 'wasm/clock.wasm', // [请添加此行]
     initialValues: { bpm: 120 }
   };
 
