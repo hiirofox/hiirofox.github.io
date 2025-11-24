@@ -8,7 +8,7 @@ export class Mixer extends BaseNode {
     type: NodeType.MIXER,
     label: 'MIXER',
     shortLabel: 'MIX',
-    workletPath: 'js/dsp/processors/MixerProcessor.js',
+    workletPath: 'js/modulars/processors/MixerProcessor.js',
     initialValues: { gain0: 1, gain1: 1, gain2: 1, gain3: 1 }
   };
 

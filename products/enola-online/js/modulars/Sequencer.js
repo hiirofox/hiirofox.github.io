@@ -8,7 +8,7 @@ export class Sequencer extends BaseNode {
     type: NodeType.SEQUENCER,
     label: 'SEQUENCER',
     shortLabel: 'SEQ',
-    workletPath: 'js/dsp/processors/SequencerProcessor.js',
+    workletPath: 'js/modulars/processors/SequencerProcessor.js',
     // 注意：默认值在 main.js 中被随机化覆盖，这里提供基础结构
     initialValues: { step0:0, step1:0, step2:0, step3:0, step4:0, step5:0, step6:0, step7:0 }
   };

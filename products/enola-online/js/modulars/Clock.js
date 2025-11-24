@@ -8,7 +8,7 @@ export class Clock extends BaseNode {
     type: NodeType.CLOCK,
     label: 'CLOCK',
     shortLabel: 'CLK',
-    workletPath: 'js/dsp/processors/ClockProcessor.js',
+    workletPath: 'js/modulars/processors/ClockProcessor.js',
     initialValues: { bpm: 120 }
   };
 

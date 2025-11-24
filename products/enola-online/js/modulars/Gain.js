@@ -8,7 +8,7 @@ export class Gain extends BaseNode {
     type: NodeType.GAIN,
     label: 'AMPLIFIER',
     shortLabel: 'VCA',
-    workletPath: 'js/dsp/processors/GainProcessor.js',
+    workletPath: 'js/modulars/processors/GainProcessor.js',
     initialValues: { gain: 0.5 }
   };
 

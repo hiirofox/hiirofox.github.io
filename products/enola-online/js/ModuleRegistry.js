@@ -2,15 +2,15 @@
 import { NodeType } from './types.js';
 
 // 导入所有 DSP 模块
-import { Master } from './dsp/Master.js';
-import { Oscillator } from './dsp/Oscillator.js';
-import { Filter } from './dsp/Filter.js';
-import { Gain } from './dsp/Gain.js';
-import { LFO } from './dsp/LFO.js';
-import { Clock } from './dsp/Clock.js';
-import { Sequencer } from './dsp/Sequencer.js';
-import { Envelope } from './dsp/Envelope.js';
-import { Mixer } from './dsp/Mixer.js';
+import { Master } from './modulars/Master.js';
+import { Oscillator } from './modulars/Oscillator.js';
+import { Filter } from './modulars/Filter.js';
+import { Gain } from './modulars/Gain.js';
+import { LFO } from './modulars/LFO.js';
+import { Clock } from './modulars/Clock.js';
+import { Sequencer } from './modulars/Sequencer.js';
+import { Envelope } from './modulars/Envelope.js';
+import { Mixer } from './modulars/Mixer.js';
 
 const registry = new Map();
 
