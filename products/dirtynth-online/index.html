@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dirtynth WebTest</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Dirtynth</h1>
+      <p id="status">Idle</p>
+    </div>
+    <div class="topbar-actions">
+      <button id="startButton" type="button">Start Audio</button>
+      <button id="downloadPresetButton" type="button">Download Preset</button>
+    </div>
+  </header>
+
+  <main class="panel">
+    <section class="keyboard">
+      <div id="heldNotes" class="held-notes"></div>
+    </section>
+
+    <section id="controls" class="controls"></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

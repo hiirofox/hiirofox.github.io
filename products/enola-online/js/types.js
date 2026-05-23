@@ -7,5 +7,10 @@ export const NodeType = {
     SEQUENCER: 'SEQUENCER',
     CLOCK: 'CLOCK',
     ENVELOPE: 'ENVELOPE',
-    MIXER: 'MIXER' // [新增]
+    MIXER: 'MIXER',
+    // 宏功能模块
+    KNOB: 'KNOB',
+    MACRO: 'MACRO',
+    PORT_IN: 'PORT_IN',
+    PORT_OUT: 'PORT_OUT'
 };

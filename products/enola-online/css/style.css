@@ -98,3 +98,29 @@ textarea, input {
     position: absolute;
     z-index: 20;
 }
+
+/* Macro拖拽模式样式 */
+.macro-drag-mode .node-container {
+    transition: all 0.2s ease;
+}
+
+.macro-drop-target {
+    border-color: #FFFF00 !important;
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.7) !important;
+    background: rgba(255, 255, 0, 0.1) !important;
+}
+
+.macro-drop-target:hover {
+    border-color: #FFFFFF !important;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 拖拽提示工具提示 */
+#macro-drag-tooltip {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

@@ -3,17 +3,27 @@
 export class Persistence {
     
     // 1. 序列化 (Async): JSON -> GZIP -> Base64 (URL Safe)
-    static async serialize(nodesMap, edgesArr) {
+    static async serialize(nodesMap, edgesArr, macroManager = null) {
         // 构建轻量级状态对象
         const nodes = [];
         nodesMap.forEach(n => {
-            nodes.push({
+            const nodeData = {
                 id: n.id,
                 type: n.type,
                 x: Math.round(n.x),
                 y: Math.round(n.y),
                 v: n.data.values
-            });
+            };
+            
+            // 如果是Macro节点，确保保存内部状态
+            if (n.type === 'MACRO' && macroManager) {
+                // 如果当前正在此Macro内部，先保存当前状态
+                if (macroManager.currentLayer.macroId === n.id) {
+                    macroManager.saveMacroInternalState(n.id);
+                }
+            }
+            
+            nodes.push(nodeData);
         });
 
         const edges = edgesArr.map(e => ({
@@ -23,7 +33,16 @@ export class Persistence {
             th: e.targetHandle
         }));
 
-        const state = { n: nodes, e: edges };
+        // 包含层级信息
+        const state = {
+            n: nodes,
+            e: edges,
+            // 保存当前层级状态（如果在Macro内部）
+            currentLayer: macroManager ? {
+                level: macroManager.currentLayer.level,
+                macroId: macroManager.currentLayer.macroId
+            } : { level: 0, macroId: null }
+        };
         
         try {
             const jsonString = JSON.stringify(state);
@@ -77,6 +96,11 @@ export class Persistence {
             const decompressedStream = stream.pipeThrough(new DecompressionStream("gzip"));
             // 直接解析为 JSON
             const json = await new Response(decompressedStream).json();
+            
+            // 兼容旧格式：如果没有currentLayer字段，添加默认值
+            if (!json.currentLayer) {
+                json.currentLayer = { level: 0, macroId: null };
+            }
             
             return json;
 
