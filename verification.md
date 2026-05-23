@@ -5,15 +5,18 @@ Executor: Codex
 
 ## Result
 
-Passed.
+Passed for code and static asset readiness.
 
 ## Checks
 
-- Confirmed `header.html` now links Dirtynth to `http://localhost:8080/`.
+- Confirmed `header.html` now links Dirtynth to `/products/dirtynth-online/index.html`.
 - Confirmed `products/dirtynth-online/index.html` exists.
-- Confirmed `http://localhost:8080/` is served by `products/dirtynth-online/server.js` with SharedArrayBuffer isolation headers.
-- Reviewed the diff and found the functional change scoped to the Products navigation menu.
+- Added scoped static isolation bootstrap and Service Worker for GitHub Pages style hosting.
+- Added `products/dirtynth-online/presets.json` from the `presets` folder.
+- Removed the built-in fallback preset block from `app.js`.
+- Confirmed JavaScript syntax for `app.js`, `coi-bootstrap.js`, and `coi-serviceworker.js`.
+- Confirmed the static page loads all 6 preset options from `presets.json` on a plain local static server.
 
 ## Risk
 
-Low for local use while `server.js` is running. For public deployment, replace `http://localhost:8080/` with the deployed Dirtynth server URL that sends the same COOP/COEP headers.
+Low to medium. The static Service Worker approach is designed for GitHub Pages, but Codex in-app browser did not expose Service Worker control, so final audio confirmation should be done in a normal browser on the deployed github.io URL.

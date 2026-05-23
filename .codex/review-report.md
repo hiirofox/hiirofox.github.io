@@ -2,7 +2,7 @@
 
 Date: 2026-05-23
 Executor: Codex
-Task: Link dirtynth-online from the Products menu through the local server.js endpoint.
+Task: Convert Dirtynth Online to static GitHub Pages hosting.
 
 ## Scores
 
@@ -16,11 +16,12 @@ Pass.
 
 ## Findings
 
-- The Dirtynth menu item is present in `header.html`.
-- The target page `products/dirtynth-online/index.html` exists.
-- `server.js` serves Dirtynth on `http://localhost:8080/` with SharedArrayBuffer isolation headers.
-- The functional change is limited to one shared navigation link.
+- The Dirtynth menu item points to `/products/dirtynth-online/index.html`.
+- `index.html` registers a scoped Service Worker before loading `app.js`.
+- The Service Worker adds COOP/COEP/CORP headers to same-origin static resources.
+- `presets.json` lists the 6 files currently in the `presets` folder.
+- `app.js` requires the static preset manifest and no longer contains fallback preset code.
 
 ## Residual Risk
 
-The link is local-server specific. A public deployment needs an equivalent hosted Dirtynth server URL with the same COOP/COEP headers.
+Final deployed audio confirmation should be done in a normal browser because the Codex in-app browser did not expose Service Worker control during the local static smoke test.

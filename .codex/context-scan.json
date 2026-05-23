@@ -4,9 +4,9 @@
   "task": "Link dirtynth-online from the Products navigation menu.",
   "location": {
     "navigation": "header.html",
-    "target": "http://localhost:8080/"
+    "target": "/products/dirtynth-online/index.html"
   },
-  "currentImplementation": "The shared Products dropdown in header.html links to VST3 Plugins, Hardware, Synth Online, Enola, and Dirtynth.",
+  "currentImplementation": "The shared Products dropdown in header.html links to VST3 Plugins, Hardware, Synth Online, Enola, and Dirtynth. Dirtynth is now served from its static index page.",
   "similarExamples": [
     {
       "name": "Enola",
@@ -17,7 +17,7 @@
       "href": "/products/synth-online/index.html"
     }
   ],
-  "serverRequirement": "Dirtynth requires SharedArrayBuffer and must be opened through products/dirtynth-online/server.js or an equivalent deployment with COOP/COEP headers.",
+  "serverRequirement": "Dirtynth requires SharedArrayBuffer. The static index registers a scoped Service Worker that adds COOP/COEP/CORP headers for same-origin resources, so GitHub Pages can serve the synth without running server.js.",
   "toolFallbacks": [
     "code-index MCP was not available in this session; used rg and direct file reads instead.",
     "shrimp-task-manager MCP was not available in this session; used sequential-thinking and a direct local plan."
