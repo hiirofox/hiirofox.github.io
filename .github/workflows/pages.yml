@@ -28,18 +28,21 @@ jobs:
 
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
-        env:
-          JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          token: ${{ github.token }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 
   deploy:
-    environment:
-      name: github-pages
     runs-on: ubuntu-latest
     needs: build
 
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
