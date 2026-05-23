@@ -1,0 +1,31 @@
+{
+  "date": "2026-05-23",
+  "executor": "Codex",
+  "task": "Link dirtynth-online from the Products navigation menu.",
+  "location": {
+    "navigation": "header.html",
+    "target": "http://localhost:8080/"
+  },
+  "currentImplementation": "The shared Products dropdown in header.html links to VST3 Plugins, Hardware, Synth Online, Enola, and Dirtynth.",
+  "similarExamples": [
+    {
+      "name": "Enola",
+      "href": "/products/enola-online/index.html"
+    },
+    {
+      "name": "Synth Online",
+      "href": "/products/synth-online/index.html"
+    }
+  ],
+  "serverRequirement": "Dirtynth requires SharedArrayBuffer and must be opened through products/dirtynth-online/server.js or an equivalent deployment with COOP/COEP headers.",
+  "toolFallbacks": [
+    "code-index MCP was not available in this session; used rg and direct file reads instead.",
+    "shrimp-task-manager MCP was not available in this session; used sequential-thinking and a direct local plan."
+  ],
+  "sufficiencyCheck": {
+    "interfaceContractClear": true,
+    "technicalChoiceUnderstood": true,
+    "mainRisksIdentified": true,
+    "verificationKnown": true
+  }
+}
